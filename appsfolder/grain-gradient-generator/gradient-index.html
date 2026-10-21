@@ -61,7 +61,17 @@
              stroke-width="3" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>
       </button>
     </div>
-    <div class="banks" id="settings-body"></div>
+    <div class="panel-tabs" role="tablist" aria-label="Settings sections">
+      <button type="button" role="tab" class="panel-tab" id="tab-gradient"
+              aria-selected="true" aria-controls="settings-body">Gradient</button>
+      <button type="button" role="tab" class="panel-tab" id="tab-marks"
+              aria-selected="false" aria-controls="marks-body" tabindex="-1">Marks</button>
+    </div>
+    <div class="banks" id="settings-body" role="tabpanel" aria-labelledby="tab-gradient"></div>
+    <div class="marks-tab" id="marks-body" role="tabpanel" aria-labelledby="tab-marks" hidden>
+      <div class="mark-toggles" id="mark-toggles"></div>
+      <div class="banks" id="marks-banks"></div>
+    </div>
     <div class="panel-resize" id="settings-resize" tabindex="0" role="separator"
          aria-label="Resize settings panel with arrow keys"></div>
   </dialog>
@@ -73,8 +83,12 @@
     Try a recent version of Chrome, Firefox or Safari.
   </p>
 
+  <div class="mark-menu" id="mark-menu" role="dialog" aria-labelledby="mark-menu-title" hidden></div>
+  <input type="file" id="mark-file" accept="image/svg+xml,image/png,image/jpeg,image/webp" hidden>
+
   <div class="sr-only" id="announcer" aria-live="polite"></div>
 
+  <script src="marks.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
