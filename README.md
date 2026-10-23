@@ -14,3 +14,5 @@ A place to keep all my web apps: tests, drafts, linking to other repos and an in
 - Plate Slander - a generator to match the game for boring car rides
 - Hiking Backpack packer - visualiser for packing a hiking bag full of gear.
 
+side notes/projects:
+https://perchance.org/storyboard-creator#edit
