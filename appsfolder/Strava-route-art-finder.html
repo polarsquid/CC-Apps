@@ -752,6 +752,23 @@ button { font: 600 15px var(--body); cursor: pointer; border-radius: 6px; }
 .seg button { background: var(--paper); color: var(--ink); border: 0; border-right: 1px solid var(--line); border-radius: 0; padding: 8px 0; font: 600 15px var(--display); font-variant-numeric: tabular-nums; }
 .seg button:last-child { border-right: 0; }
 .seg button[aria-pressed=true] { background: var(--ink); color: var(--paper); }
+.toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
+.toggle input { appearance: none; width: 40px; height: 22px; border-radius: 11px; background: var(--line); position: relative; cursor: pointer; flex: none; margin: 0; transition: background .15s; }
+.toggle input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--panel); transition: transform .15s; }
+.toggle input:checked { background: var(--route); }
+.toggle input:checked::after { transform: translateX(18px); }
+.toggle input:focus-visible { outline: 2px solid var(--route); outline-offset: 2px; }
+.seg.seg3 { grid-template-columns: repeat(3, 1fr); }
+.seg.seg3 button { font: 600 13px var(--body); }
+.elev { display: flex; flex-direction: column; gap: 4px; }
+.elev .nums { display: flex; gap: 14px; align-items: baseline; font-variant-numeric: tabular-nums; }
+.elev .nums b { font: 700 22px/1 var(--display); }
+.elev .nums span { font-size: 12px; color: var(--muted); }
+.prof { width: 100%; height: 64px; display: block; }
+.prof .area { fill: var(--route-soft); }
+.prof .ln { fill: none; stroke: var(--route); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.prof .grid { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.profax { display: flex; justify-content: space-between; font: 11px var(--mono); color: var(--muted); }
 .more { margin-top: 16px; background: transparent; color: var(--ink); border: 1px solid var(--line); padding: 10px 14px; }
 
 .where { margin-bottom: 32px; }
@@ -820,6 +837,12 @@ button { font: 600 15px var(--body); cursor: pointer; border-radius: 6px; }
         <span class="lbl">Options to show</span>
         <div class="seg" id="perSeg" role="group" aria-label="Options to show">
           <button type="button" data-n="3" aria-pressed="false">3</button><button type="button" data-n="6" aria-pressed="true">6</button><button type="button" data-n="9" aria-pressed="false">9</button><button type="button" data-n="12" aria-pressed="false">12</button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="toggle" for="elevOn"><input type="checkbox" id="elevOn"> Show elevation gain</label>
+        <div class="seg seg3" id="sortSeg" role="group" aria-label="Order routes by" hidden>
+          <button type="button" data-s="match" aria-pressed="true">Best match</button><button type="button" data-s="flat" aria-pressed="false">Flattest</button><button type="button" data-s="hilly" aria-pressed="false">Hilliest</button>
         </div>
       </div>
       <button class="go" id="go" type="submit">Find routes</button>
@@ -1974,6 +1997,109 @@ out skel qt;`;
   }
   state.showOnMap = showOnMap;
 
+  /* ---------- elevation (Mapzen/AWS Terrarium elevation tiles, decoded in the browser) ---------- */
+  const ELEV_Z = 14;
+  const elevTiles = new Map();
+  function elevTile(x, y) {
+    const key = x + "/" + y;
+    if (elevTiles.has(key)) return elevTiles.get(key);
+    const p = new Promise(res => {
+      const img = new Image(); img.crossOrigin = "anonymous";
+      const t = setTimeout(() => res(null), 15000);
+      img.onload = () => {
+        clearTimeout(t);
+        try {
+          const c = document.createElement("canvas"); c.width = c.height = 256;
+          const cx = c.getContext("2d", { willReadFrequently: true }); cx.drawImage(img, 0, 0);
+          const d = cx.getImageData(0, 0, 256, 256).data, e = new Float32Array(65536);
+          for (let i = 0; i < 65536; i++) e[i] = d[i * 4] * 256 + d[i * 4 + 1] + d[i * 4 + 2] / 256 - 32768;
+          res(e);
+        } catch (err) { res(null); }
+      };
+      img.onerror = () => { clearTimeout(t); res(null); };
+      img.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${ELEV_Z}/${x}/${y}.png`;
+    });
+    elevTiles.set(key, p); return p;
+  }
+  const mDist = (a, b) => { const k = Math.cos((a[0] + b[0]) / 2 * Math.PI / 180); return Math.hypot((b[0] - a[0]) * 111320, (b[1] - a[1]) * 111320 * k); };
+  async function measureElevation(r) {
+    if (r.elev !== undefined) return r.elev;
+    const STEP = 20, samples = [], vIdx = [];
+    let along = 0;
+    for (let i = 0; i < r.latlng.length; i++) {
+      vIdx.push(samples.length);
+      const a = r.latlng[i]; samples.push({ ll: a, d: along });
+      if (i === r.latlng.length - 1) break;
+      const b = r.latlng[i + 1], L = mDist(a, b), n = Math.floor(L / STEP);
+      for (let k = 1; k <= n; k++) { const t = k * STEP / L; if (t < 1) samples.push({ ll: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], d: along + k * STEP }); }
+      along += L;
+    }
+    const W = 256 * 2 ** ELEV_Z;
+    for (const s of samples) { const [mx, my] = merc(s.ll[0], s.ll[1]); s.px = mx * W - 0.5; s.py = my * W - 0.5; }
+    const need = new Set(samples.flatMap(s => [Math.floor(s.px / 256), Math.floor((s.px + 1) / 256)].flatMap(x => [Math.floor(s.py / 256), Math.floor((s.py + 1) / 256)].map(y => x + "/" + y))));
+    const got = new Map();
+    await Promise.all([...need].map(async k => { const [x, y] = k.split("/").map(Number); got.set(k, await elevTile(x, y)); }));
+    if ([...got.values()].some(v => !v)) { r.elev = null; return null; }
+    const at = (gx, gy) => got.get(Math.floor(gx / 256) + "/" + Math.floor(gy / 256))[(gy & 255) * 256 + (gx & 255)];
+    const raw = samples.map(s => {
+      const x0 = Math.floor(s.px), y0 = Math.floor(s.py), fx = s.px - x0, fy = s.py - y0;
+      return (at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx) * (1 - fy) + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy;
+    });
+    // smooth over ~100 m, then count climbs and drops bigger than 2 m (filters out data noise)
+    const ele = raw.map((_, i) => { let s = 0, c = 0; for (let k = Math.max(0, i - 2); k <= Math.min(raw.length - 1, i + 2); k++) { s += raw[k]; c++; } return s / c; });
+    let gain = 0, loss = 0, ref = ele[0];
+    for (const e of ele) { if (e - ref >= 2) { gain += e - ref; ref = e; } else if (ref - e >= 2) { loss += ref - e; ref = e; } }
+    r.elev = { gain: Math.round(gain), loss: Math.round(loss), min: Math.min(...ele), max: Math.max(...ele), d: samples.map(s => s.d), ele, vertexEle: vIdx.map(i => ele[i]) };
+    return r.elev;
+  }
+  async function measureAll(list) {
+    const todo = list.filter(r => r.elev === undefined);
+    if (!todo.length) return;
+    let done = 0;
+    setStatus(`Measuring climb on ${todo.length} routes…`);
+    await Promise.all(todo.map(async r => { await measureElevation(r); setStatus(`Measuring climb: ${++done} of ${todo.length} routes`, done / todo.length); }));
+    if (todo.some(r => r.elev === null)) setStatus("Some elevation data didn't load, so those routes show no climb figure. Try again in a moment.");
+    else setStatus(`Climb measured on ${todo.length} routes.`, 1);
+  }
+  function profileSvg(e) {
+    const W = 300, H = 64, n = e.ele.length, D = e.d[n - 1] || 1, lo = Math.floor(e.min / 5) * 5, hi = Math.max(lo + 20, Math.ceil(e.max / 5) * 5);
+    const X = d => (d / D * W).toFixed(1), Y = v => (6 + (1 - (v - lo) / (hi - lo)) * (H - 12)).toFixed(1);
+    const step = Math.max(1, Math.floor(n / 150)), pts = [];
+    for (let i = 0; i < n; i += step) pts.push(`${X(e.d[i])},${Y(e.ele[i])}`);
+    pts.push(`${X(e.d[n - 1])},${Y(e.ele[n - 1])}`);
+    return `<svg class="prof" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+      <line class="grid" x1="0" x2="${W}" y1="${Y(hi)}" y2="${Y(hi)}"/><line class="grid" x1="0" x2="${W}" y1="${Y(lo)}" y2="${Y(lo)}"/>
+      <polygon class="area" points="0,${H} ${pts.join(" ")} ${W},${H}"/><polyline class="ln" points="${pts.join(" ")}"/></svg>
+      <div class="profax"><span>${Math.round(e.min)}–${Math.round(e.max)} m above sea level</span><span>${(D / 1000).toFixed(1)} km</span></div>`;
+  }
+  function applySort() {
+    const base = state.baseResults || state.results;
+    if (!state.elevOn || state.sort === "match") { state.results = base.slice(); return; }
+    const g = r => (r.elev ? r.elev.gain : Infinity) * (state.sort === "hilly" ? -1 : 1);
+    state.results = base.slice().sort((a, b) => (b.looksLike - a.looksLike) || (g(a) - g(b)) || (b.score - a.score));
+    if (state.sort === "hilly") state.results.sort((a, b) => (b.looksLike - a.looksLike) || ((b.elev?.gain ?? -1) - (a.elev?.gain ?? -1)));
+  }
+  state.elevOn = false; state.sort = "match";
+  try { state.elevOn = localStorage.getItem("raf-elev") === "1"; const so = localStorage.getItem("raf-sort"); if (["match", "flat", "hilly"].includes(so)) state.sort = so; } catch (e) {}
+  const syncElevUi = () => {
+    $("elevOn").checked = state.elevOn; $("sortSeg").hidden = !state.elevOn;
+    document.querySelectorAll("#sortSeg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.s === state.sort)));
+  };
+  async function refreshElevation() {
+    if (state.elevOn && state.baseResults) await measureAll(state.baseResults);
+    applySort(); state.page = 0;
+    if (state.baseResults) showPage();
+  }
+  $("elevOn").addEventListener("change", e => {
+    state.elevOn = e.target.checked; try { localStorage.setItem("raf-elev", state.elevOn ? "1" : "0"); } catch (err) {}
+    syncElevUi(); refreshElevation();
+  });
+  document.querySelectorAll("#sortSeg button").forEach(b => b.onclick = () => {
+    state.sort = b.dataset.s; try { localStorage.setItem("raf-sort", state.sort); } catch (err) {}
+    syncElevUi(); refreshElevation();
+  });
+  syncElevUi();
+
   /* ---------- search ---------- */
   $("form").addEventListener("submit", async ev => {
     ev.preventDefault();
@@ -2006,10 +2132,13 @@ out skel qt;`;
       });
       for (const r of res.ranked) r.outlineLL = r.outline.map(([x, y]) => proj.toLL(x, y));
       const good = res.accepted.slice(), weak = res.ranked.filter(r => !r.looksLike && r.inRange);
-      state.results = good.concat(weak);
+      state.baseResults = good.concat(weak);
+      state.results = state.baseResults.slice();
       state.page = 0;
       $("summary").textContent = `Checked ${res.checked.toLocaleString()} placements, routed ${res.routed} on real streets, ${good.length} still looked like their shape.`;
       setStatus(good.length >= state.per ? `Done. ${good.length} strong matches.` : good.length ? `${good.length} strong match${good.length > 1 ? "es" : ""}. Weaker ones are labelled.` : "No strong matches here. Showing the closest tries; a bigger circle or a different distance usually helps.", 1);
+      const doneMsg = $("status").textContent;
+      if (state.elevOn) { await measureAll(state.baseResults); applySort(); if (!state.baseResults.some(r => r.elev === null)) setStatus(doneMsg, 1); }
       await showPage();
       if (state.results[0]) showOnMap(state.results[0]);
     } catch (err) {
@@ -2045,6 +2174,7 @@ out skel qt;`;
         <div class="body">
           <h3>${r.shape}<span>${km} km</span></h3>
           <div class="meta"><span class="chip ${r.looksLike ? "good" : "weak"}">${r.looksLike ? "Strong match" : "Weak match"} · ${pct}%</span></div>
+          ${state.elevOn ? (r.elev ? `<div class="elev"><div class="nums"><b>↑ ${r.elev.gain} m</b><span>climb</span><b>↓ ${r.elev.loss} m</b><span>descent</span></div>${profileSvg(r.elev)}</div>` : `<div class="elev"><span class="profax">Elevation data unavailable for this route.</span></div>`) : ""}
           <div class="ref">
             <figure><svg viewBox="0 0 100 100" aria-hidden="true">${polySvg(r.shapeRef.pts, false)}</svg><figcaption>The shape</figcaption></figure>
             <span class="arrow" aria-hidden="true">→</span>
@@ -2086,7 +2216,7 @@ out skel qt;`;
 <gpx version="1.1" creator="Route Art Finder" xmlns="http://www.topografix.com/GPX/1/1">
 <metadata><name>${name}</name></metadata>
 <trk><name>${name}</name><type>running</type><trkseg>
-${r.latlng.map(([la, lo]) => `<trkpt lat="${la.toFixed(6)}" lon="${lo.toFixed(6)}"/>`).join("\n")}
+${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${lo.toFixed(6)}"><ele>${r.elev.vertexEle[i].toFixed(1)}</ele></trkpt>` : `<trkpt lat="${la.toFixed(6)}" lon="${lo.toFixed(6)}"/>`).join("\n")}
 </trkseg></trk>
 </gpx>`;
   }
@@ -2163,6 +2293,11 @@ ${r.latlng.map(([la, lo]) => `<trkpt lat="${la.toFixed(6)}" lon="${lo.toFixed(6)
     ctx.font = "700 50px 'Barlow Condensed', 'Arial Narrow', sans-serif";
     ctx.fillText(r.shape.toUpperCase(), 36, S - 30);
     ctx.textAlign = "right"; ctx.fillText(`${(r.length / 1000).toFixed(1)} KM`, S - 32, S - 30);
+    if (state.elevOn && r.elev) {
+      const kmW = ctx.measureText(`${(r.length / 1000).toFixed(1)} KM`).width;
+      ctx.font = "600 30px 'Barlow Condensed', 'Arial Narrow', sans-serif"; ctx.fillStyle = "#646b66";
+      ctx.fillText(`↑ ${r.elev.gain} M`, S - 32 - kmW - 22, S - 31);
+    }
     ctx.font = "400 15px 'JetBrains Mono', monospace"; ctx.fillStyle = "rgba(26,30,28,.7)";
     ctx.fillText(noTiles ? "© OpenStreetMap contributors" : "Tiles © Esri · Data © OpenStreetMap contributors", S - 14, S - band - 12);
   }
