@@ -812,7 +812,7 @@ button { font: 600 15px var(--body); cursor: pointer; border-radius: 6px; }
 <div class="wrap">
   <header>
     <h1>Route Art <span>Finder</span></h1>
-    <p>Set a distance and circle where you want to run. It tries all 30 shapes in the library at 16 angles, mirrored and not, routes each one on real streets, and keeps only the runs that still look like the shape.</p>
+    <p>Set a distance and circle where you want to run. It tries all 36 shapes in the library at 16 angles, mirrored and not, routes each one on real streets, and keeps only the runs that still look like the shape.</p>
   </header>
 
   <div class="layout">
@@ -934,6 +934,18 @@ const RouteArt = (() => {
     const ll = [[113.4, -22.0], [114.1, -21.8], [116.7, -20.6], [121.0, -19.5], [122.2, -17.0], [125.0, -14.6], [127.9, -14.5], [129.5, -15.0], [130.2, -12.4], [132.6, -11.5], [135.9, -12.0], [135.4, -15.0], [137.8, -16.4], [140.5, -17.6], [141.6, -13.0], [142.5, -10.7], [143.5, -14.0], [145.4, -16.0], [146.3, -19.0], [149.5, -22.4], [153.1, -25.5], [153.6, -28.6], [152.5, -32.4], [150.2, -36.2], [149.9, -37.5], [146.4, -39.1], [144.9, -37.9], [140.6, -38.0], [139.6, -36.9], [138.5, -35.6], [137.8, -33.3], [135.9, -34.8], [134.2, -32.7], [131.2, -31.5], [126.0, -32.3], [123.6, -33.9], [117.9, -35.1], [115.0, -34.3], [115.7, -31.8], [114.9, -29.0], [113.4, -26.2], [113.7, -23.0]];
     return ll.map(([lo, la]) => [lo * 0.9, -la]);
   }
+  function regular(n, start) {
+    return Array.from({ length: n }, (_, i) => { const a = start + i * TAU / n; return [Math.cos(a), Math.sin(a)]; });
+  }
+  function keyPts() {
+    // old skeleton key: round bow, collar, long shaft, notched bit
+    const p = [], cx = 2.5, cy = 3, r = 2.5, a0 = Math.asin(0.6 / r);
+    for (let i = 0; i <= 28; i++) { const a = -a0 - i / 28 * (TAU - 2 * a0); p.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+    return p.concat([[5.4, 3.6], [5.4, 4.4], [6.2, 4.4], [6.2, 3.6], [11.4, 3.6], [11.4, 6.4], [12.4, 6.4], [12.4, 5.4], [13.2, 5.4], [13.2, 6.4], [14.2, 6.4], [14.2, 2.4], [6.2, 2.4], [6.2, 1.6], [5.4, 1.6], [5.4, 2.4]]);
+  }
+  // "RUN" in chunky block letters joined at the baseline; R's counter opens into its leg so the word is one loop
+  const RUN_CAPS = [[0, 0], [3.6, 0], [3.6, 4], [4.4, 4], [4.4, 0], [5.4, 0], [5.4, 4], [6.4, 4], [6.4, 0], [7.4, 0], [7.4, 4], [8.2, 4], [8.2, 0], [9.2, 0], [10.4, 3.4], [10.4, 0], [11.4, 0], [11.4, 5], [10.4, 5], [9.2, 1.6], [9.2, 5], [2.6, 5], [2.6, 3.2], [1.8, 3.2], [1.8, 2.2], [2.6, 2.2], [2.6, 1], [1, 1], [1, 5], [0, 5]];
+  const RUN_LOWER = [[0, 0], [2.4, 0], [2.4, 1], [1, 1], [1, 2.6], [3.2, 2.6], [3.2, 0], [4.2, 0], [4.2, 2.6], [5, 2.6], [5, 0], [6, 0], [6, 2.6], [6.8, 2.6], [6.8, 0], [9.6, 0], [9.6, 3.6], [8.6, 3.6], [8.6, 1], [7.8, 1], [7.8, 3.6], [0, 3.6]];
   const RAW_SHAPES = [
     ["Heart", heartPts()],
     ["Star", starPts()],
@@ -944,9 +956,6 @@ const RouteArt = (() => {
     ["Rocket", [[5, 0], [7, 2.5], [7.5, 6], [7.5, 10], [9.5, 12.5], [9.5, 14], [7, 13], [3, 13], [0.5, 14], [0.5, 12.5], [2.5, 10], [2.5, 6], [3, 2.5]]],
     ["Pine tree", [[5, 0], [8, 3.5], [6.5, 3.5], [9, 7], [7, 7], [10, 11], [6, 11], [6, 13.5], [4, 13.5], [4, 11], [0, 11], [3, 7], [1, 7], [3.5, 3.5], [2, 3.5]]],
     ["Boot", [[1, 0], [5, 0], [5, 7], [8, 8], [10, 9], [10, 11], [0, 11], [0.5, 6]]],
-    ["Running shoe", [[0, 6], [0.5, 3], [3, 2.5], [4, 0], [6.5, 0], [7, 2.5], [10, 4], [13, 5], [14, 7], [13.5, 8], [0, 8]]],
-    ["Mushroom", [[0, 6], [0.6, 3.6], [2.3, 1.4], [5, 0.5], [7.7, 1.4], [9.4, 3.6], [10, 6], [6.5, 6], [6.8, 10], [3.2, 10], [3.5, 6]]],
-    ["Coffee mug", [[0, 0], [7, 0], [7, 2], [9, 2], [10, 3.5], [10, 5.5], [9, 7], [7, 7], [7, 10], [0, 10]]],
     ["Diamond", [[2, 0], [8, 0], [10, 3], [5, 10], [0, 3]]],
     ["Arrow", [[0, 3], [6, 3], [6, 0], [10, 5], [6, 10], [6, 7], [0, 7]]],
     ["Thumbs up", [[0, 5.6], [2.4, 5.6], [3.7, 4.4], [4.6, 2.5], [4.8, 0.6], [5.7, 0], [6.7, 0.5], [6.9, 1.8], [6.5, 3.4], [6.1, 4.6], [9.6, 4.6], [10.4, 5.5], [9.8, 6.7], [10.4, 7.8], [9.7, 9], [10.1, 10.1], [9.3, 11.2], [8.4, 12], [2.4, 12], [2.4, 11.6], [0, 11.6]]],
@@ -960,11 +969,20 @@ const RouteArt = (() => {
     ["Opera House", [[0, 10], [15, 10], [15, 8.2], [13.8, 8.2], [13.6, 6.0], [12.6, 3.6], [11.4, 6.6], [11.2, 3.4], [10.0, 0.4], [8.6, 5.0], [8.4, 2.4], [7.2, -1.2], [5.8, 4.2], [5.2, 2.2], [4.0, 0.4], [3.0, 5.0], [2.6, 3.6], [1.8, 2.6], [1.0, 8.2], [0, 8.2]]],
     ["Harbour Bridge", bridgePts()],
     ["Boomerang", [[0, 6.6], [1.6, 4.2], [3.8, 2.0], [6, 0.5], [7, 0.2], [8, 0.5], [10.2, 2.0], [12.4, 4.2], [14, 6.6], [13.6, 7.6], [12.6, 7.8], [11.0, 6.0], [9.0, 4.2], [7, 3.2], [5, 4.2], [3, 6.0], [1.4, 7.8], [0.4, 7.6]]],
-    ["Surfboard", [[3, 0], [4.2, 1.6], [5.3, 4], [5.9, 7], [6, 10], [5.8, 13], [5.3, 16], [4.4, 18.6], [3, 19.6], [1.6, 18.6], [0.7, 16], [0.2, 13], [0, 10], [0.1, 7], [0.7, 4], [1.8, 1.6]]],
-    ["Thong", [[4.2, 0], [6, 0.5], [7.2, 2], [7.6, 4], [7.2, 6.5], [6.4, 8.6], [6.2, 10.6], [6.6, 13], [6.4, 15.4], [5.2, 17], [3.6, 17.4], [2.2, 16.8], [1.4, 15], [1.4, 12.6], [1.4, 10], [0.9, 7.6], [0.4, 5], [0.6, 2.6], [1.8, 0.8]]],
     ["Dinosaur", [[15, 0.6], [16.4, 1.0], [16.4, 1.8], [15.0, 2.0], [13.8, 3.0], [12.8, 5.2], [12.4, 7.4], [12.6, 10.6], [11.2, 10.6], [11.2, 9.0], [7.4, 9.0], [7.4, 10.6], [5.8, 10.6], [5.6, 8.8], [3.6, 8.4], [0, 9.6], [0.2, 9.0], [3.4, 6.8], [6.4, 4.8], [8.8, 4.2], [11.0, 4.6], [12.2, 3.6], [13.2, 1.6], [14.2, 0.6]]],
     ["Dog", [[14, 3.2], [14, 4.2], [12.2, 4.4], [11.6, 5.4], [11.8, 10.8], [10.4, 10.8], [10.4, 7.6], [5.2, 7.6], [5.2, 10.8], [3.8, 10.8], [3.6, 6.6], [2.4, 5.6], [0.6, 2.6], [1.4, 2.2], [3.4, 4.4], [9.6, 4.2], [10.2, 2.0], [10.4, 0.2], [11.4, 1.2], [12.4, 1.6]]],
-    ["Ice cream", [[5, 15], [1.6, 8], [0.8, 7.6], [0.2, 5.6], [1.0, 3.0], [3.0, 1.2], [5, 0.8], [7, 1.2], [9, 3], [9.8, 5.6], [9.2, 7.6], [8.4, 8]]],
+    ["Circle", regular(48, 0), { symRot: TAU, mirror: true }],
+    ["Triangle", regular(3, -Math.PI / 2), { symRot: TAU / 3, mirror: true }],
+    ["Square", regular(4, Math.PI / 4), { symRot: TAU / 4, mirror: true }],
+    ["Pentagon", regular(5, -Math.PI / 2), { symRot: TAU / 5, mirror: true }],
+    ["Hexagon", regular(6, 0), { symRot: TAU / 6, mirror: true }],
+    ["Old key", keyPts()],
+    ["Flying bird", [[0, 1], [2, 0.2], [4, 0.2], [6, 1.6], [7.2, 2.8], [8, 3], [8.8, 2.8], [10, 1.6], [12, 0.2], [14, 0.2], [16, 1], [15.2, 2.5], [12.8, 2.5], [11.2, 3.6], [9.4, 5], [8, 5.8], [6.6, 5], [4.8, 3.6], [3.2, 2.5], [0.8, 2.5]]],
+    ["Sword", [[2, 0], [2.7, 1.2], [2.7, 9], [4.6, 9], [4.6, 10.2], [2.5, 10.2], [2.5, 12.6], [3.0, 12.8], [3.0, 14], [1.0, 14], [1.0, 12.8], [1.5, 12.6], [1.5, 10.2], [-0.6, 10.2], [-0.6, 9], [1.3, 9], [1.3, 1.2]]],
+    ["RUN (block)", RUN_CAPS],
+    ["run (lowercase)", RUN_LOWER],
+    ["RUN (italic)", RUN_CAPS.map(([x, y]) => [x + (5 - y) * 0.32, y])],
+    ["RUN (tall)", RUN_CAPS.map(([x, y]) => [x * 0.72, y * 1.25])],
   ];
 
   function perimeter(pts) {
@@ -972,15 +990,15 @@ const RouteArt = (() => {
     for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; s += Math.hypot(b[0] - a[0], b[1] - a[1]); }
     return s;
   }
-  function normalise(name, raw) {
+  function normalise(name, raw, sym = {}) {
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (const [x, y] of raw) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, per = perimeter(raw);
     const pts = raw.map(([x, y]) => [(x - cx) / per, (y - cy) / per]);
     let maxR = 0; for (const [x, y] of pts) maxR = Math.max(maxR, Math.hypot(x, y));
-    return { name, pts, maxR };
+    return { name, pts, maxR, symRot: sym.symRot || TAU, mirror: !!sym.mirror };
   }
-  const SHAPES = RAW_SHAPES.map(([n, p]) => normalise(n, p));
+  const SHAPES = RAW_SHAPES.map(([n, p, sym]) => normalise(n, p, sym));
 
   /* place a normalised shape: mirror, rotate, scale to perimeter P, translate */
   function placeShape(shape, o) {
@@ -1377,6 +1395,22 @@ const RouteArt = (() => {
     const placements = [];
     const bound = opts.bound || { cx: opts.center[0], cy: opts.center[1], r: Infinity, place: opts.placeRadius };
     const [cx, cy] = [bound.cx, bound.cy];
+    // also try angles lined up with the local street grid, so blocky shapes and letters sit square on the streets
+    {
+      const H = new Float64Array(90), [bx0, by0, bx1, by1] = g.bounds;
+      for (let u = 0; u < g.n; u++) for (let e = g.start[u]; e < g.start[u + 1]; e++) {
+        const v = g.to[e]; if (v < u) continue;
+        const mx = (g.X[u] + g.X[v]) / 2 - cx, my = (g.Y[u] + g.Y[v]) / 2 - cy;
+        if (bound.r !== Infinity && mx * mx + my * my > bound.r * bound.r) continue;
+        let a = Math.atan2(g.Y[v] - g.Y[u], g.X[v] - g.X[u]) * 180 / Math.PI; a = ((a % 90) + 90) % 90;
+        H[Math.floor(a) % 90] += g.len[e];
+      }
+      let best = 0, bv = -1;
+      for (let i = 0; i < 90; i++) { let v = 0; for (let k = -3; k <= 3; k++) v += H[(i + k + 90) % 90]; if (v > bv) { bv = v; best = i; } }
+      const phi = (best + 0.5) * Math.PI / 180;
+      for (let k = 0; k < 4; k++) { const a = (phi + k * Math.PI / 2) % TAU; if (!rots.some(r => Math.abs(r - a) < 0.05)) rots.push(a); }
+      rots.sort((p, q) => p - q);
+    }
     const fits = outline => bound.r === Infinity || outline.every(([x, y]) => Math.hypot(x - cx, y - cy) <= bound.r * 1.03);
     const tick = () => new Promise(r => setTimeout(r, 0));
 
@@ -1398,7 +1432,8 @@ const RouteArt = (() => {
     for (const shape of shapes) {
       const best = [];
       const off = offsetsFor(shape);
-      for (const flip of [false, true]) for (const rot of rots) {
+      for (const flip of shape.mirror ? [false] : [false, true]) for (const rot of rots) {
+        if (rot >= shape.symRot - 1e-9 && rot > 0) continue; // symmetric shapes repeat themselves
         let centres;
         if (off.anchors) {
           const c = Math.cos(rot), s = Math.sin(rot);
