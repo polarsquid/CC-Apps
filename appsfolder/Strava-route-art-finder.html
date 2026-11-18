@@ -796,6 +796,10 @@ button { font: 600 15px var(--body); cursor: pointer; border-radius: 6px; }
 .netwarn { margin: 0 0 12px; padding: 12px 14px; border: 1px solid var(--warn); border-radius: 8px; color: var(--ink); background: var(--panel); font-size: 14px; }
 .netwarn strong { color: var(--warn); }
 .library { margin-top: 36px; }
+.libbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: -4px 0 12px; }
+#libCount { font: 600 13px var(--body); color: var(--muted); font-variant-numeric: tabular-nums; }
+.libbtns { display: flex; gap: 8px; }
+.libbtns .ghost { padding: 7px 12px; }
 .shapes { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
 .shape { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 6px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--ink); font: 500 12px var(--body); }
 .shape svg { width: 54px; height: 54px; }
@@ -873,7 +877,11 @@ button { font: 600 15px var(--body); cursor: pointer; border-radius: 6px; }
       </section>
 
       <section class="library">
-        <div class="section-h"><h2>Shapes it tries</h2><p>Tap a shape to leave it out of the search.</p></div>
+        <div class="section-h"><h2>Shapes it tries</h2><p>Tap shapes to switch them on or off. Only switched-on shapes are searched.</p></div>
+        <div class="libbar">
+          <span id="libCount" aria-live="polite"></span>
+          <div class="libbtns"><button type="button" class="ghost" id="selAll">Select all</button><button type="button" class="ghost" id="selNone">Deselect all</button></div>
+        </div>
         <div class="shapes" id="shapes"></div>
       </section>
 
@@ -1391,6 +1399,9 @@ const RouteArt = (() => {
     const startNode = opts.start ? nearestNode(g, opts.start[0], opts.start[1], 400) : -1;
     if (opts.start && startNode < 0) throw new Error("No runnable street within 400 m of the start point.");
     const P0 = target / 1.15; // street detours add ~15%
+    // with only a few shapes selected, look harder at each one and allow more options per shape
+    const keepN = Math.min(14, Math.max(4, Math.ceil(24 / shapes.length)));
+    const perShapeCap = Math.min(12, Math.max(2, Math.ceil(12 / shapes.length)));
     const ROT = 16, rots = Array.from({ length: ROT }, (_, i) => i * TAU / ROT);
     const placements = [];
     const bound = opts.bound || { cx: opts.center[0], cy: opts.center[1], r: Infinity, place: opts.placeRadius };
@@ -1450,7 +1461,7 @@ const RouteArt = (() => {
       best.sort((a, b) => b.sc - a.sc);
       // local hill-climb on the best few (nudge position and angle)
       const keep = [];
-      for (const cand of best.slice(0, 6)) {
+      for (const cand of best.slice(0, keepN + 2)) {
         let { o, sc } = cand;
         const stepXY = startNode >= 0 ? 60 : Math.max(40, P0 * 0.012);
         for (let it = 0; it < 3; it++) {
@@ -1469,7 +1480,7 @@ const RouteArt = (() => {
       // drop near-duplicates
       for (const c of keep.sort((a, b) => b.sc - a.sc)) {
         if (placements.filter(p => p.shape === c.shape).some(p => Math.hypot(p.o.cx - c.o.cx, p.o.cy - c.o.cy) < P0 * 0.03 && p.o.flip === c.o.flip && Math.abs(p.o.rot - c.o.rot) < 0.2)) continue;
-        if (placements.filter(p => p.shape === c.shape).length < 4) placements.push(c);
+        if (placements.filter(p => p.shape === c.shape).length < keepN) placements.push(c);
       }
       onProgress({ stage: "sweep", checked, shapeName: shape.name, frac: (shapes.indexOf(shape) + 1) / shapes.length });
       await tick();
@@ -1521,7 +1532,8 @@ const RouteArt = (() => {
     // stage 3: polish the best few by nudging position, angle and size, keeping whatever matches the shape better
     results.sort((a, b) => b.score - a.score);
     const seeds = [], seen = new Set();
-    for (const r of results) { if (seeds.length >= (opts.refine ?? 14)) break; const k = r.shape + (seen.has(r.shape) ? "2" : ""); if (seen.has(k)) continue; seen.add(k); seeds.push(r); }
+    const seedCap = Math.max(2, Math.ceil((opts.refine ?? 14) / shapes.length)), seedCount = new Map();
+    for (const r of results) { if (seeds.length >= (opts.refine ?? 14)) break; const k = seedCount.get(r.shape) || 0; if (k >= seedCap) continue; seedCount.set(r.shape, k + 1); seeds.push(r); }
     for (const seed of seeds) {
       let best = seed;
       let step = startNode >= 0 ? 50 : Math.max(40, seed.o.P * 0.012), dRot = TAU / 72, dScale = 0.04;
@@ -1546,7 +1558,7 @@ const RouteArt = (() => {
     const ranked = [], perShape = new Map();
     for (const r of results) {
       const mine = perShape.get(r.shape) || [];
-      if (mine.length >= 2) continue;
+      if (mine.length >= perShapeCap) continue;
       if (mine.some(m => Math.hypot(m.o.cx - r.o.cx, m.o.cy - r.o.cy) < m.o.P * 0.06 && Math.abs(((m.o.rot - r.o.rot) % TAU + TAU + Math.PI) % TAU - Math.PI) < 0.6 && m.o.flip === r.o.flip)) continue;
       mine.push(r); perShape.set(r.shape, mine); ranked.push(r);
     }
@@ -1760,18 +1772,25 @@ if (typeof module !== "undefined") module.exports = StreetTiles;
     return `<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="${pts.map(([x, y]) => `${(ox + (x - x0) * s).toFixed(1)},${(oy + (y - y0) * s).toFixed(1)}`).join(" ")}"/></svg>`;
   }
   const lib = $("shapes");
+  try { const sv = JSON.parse(localStorage.getItem("raf-shapes") || "null"); if (Array.isArray(sv)) state.enabled = new Set(sv.filter(n => RouteArt.SHAPES.some(s => s.name === n))); } catch (e) {}
+  const shapeBtns = new Map();
+  function syncLib() {
+    for (const [name, b] of shapeBtns) b.setAttribute("aria-pressed", String(state.enabled.has(name)));
+    const n = state.enabled.size, total = RouteArt.SHAPES.length;
+    $("libCount").textContent = n === total ? `All ${total} shapes selected` : n ? `${n} of ${total} shapes selected` : "No shapes selected. Tap the ones you want.";
+    $("selAll").disabled = n === total; $("selNone").disabled = n === 0;
+    try { localStorage.setItem("raf-shapes", JSON.stringify([...state.enabled])); } catch (e) {}
+    if (state.mapReady) circleInfo();
+  }
   for (const sh of RouteArt.SHAPES) {
     const b = document.createElement("button");
-    b.type = "button"; b.className = "shape"; b.setAttribute("aria-pressed", "true");
+    b.type = "button"; b.className = "shape";
     b.innerHTML = shapeSvg(sh) + `<span>${sh.name}</span>`;
-    b.onclick = () => {
-      const on = state.enabled.has(sh.name);
-      if (on && state.enabled.size <= 3) { setStatus("Keep at least 3 shapes switched on."); return; }
-      on ? state.enabled.delete(sh.name) : state.enabled.add(sh.name);
-      b.setAttribute("aria-pressed", String(!on));
-    };
-    lib.appendChild(b);
+    b.onclick = () => { state.enabled.has(sh.name) ? state.enabled.delete(sh.name) : state.enabled.add(sh.name); syncLib(); };
+    shapeBtns.set(sh.name, b); lib.appendChild(b);
   }
+  $("selAll").onclick = () => { state.enabled = new Set(RouteArt.SHAPES.map(s => s.name)); syncLib(); };
+  $("selNone").onclick = () => { state.enabled.clear(); syncLib(); };
 
   /* ---------- controls ---------- */
   const dist = $("dist");
@@ -1961,7 +1980,8 @@ out skel qt;`;
   function circleInfo() {
     const n = fitCount(), total = enabledShapes().length, km = (area.r * 2 / 1000).toFixed(1);
     let html = `Circle <strong>${km} km</strong> across · fits <strong>${n} of ${total}</strong> shapes at ${dist.value} km`;
-    if (n < 3) html += ` · <span class="warn">too small for this distance</span>`;
+    if (!total) html = `<span class="warn">No shapes selected. Pick some in the shape list below.</span>`;
+    else if (n < Math.min(3, total)) html += ` · <span class="warn">too small for this distance</span>`;
     if (!startInside()) html += ` · <span class="warn">start pin is outside the circle</span>`;
     $("circleInfo").innerHTML = html;
   }
@@ -1969,10 +1989,12 @@ out skel qt;`;
   centreH.on("dragend", persist);
   edgeH.on("drag", e => { area.r = Math.max(300, Math.min(6000, map.distance([area.lat, area.lon], e.target.getLatLng()))); circle.setRadius(area.r); circleInfo(); });
   edgeH.on("dragend", () => { edgeH.setLatLng(edgePoint()); persist(); });
-  const sizeForDistance = () => setArea(undefined, undefined, RouteArt.radiusFor(+dist.value * 1000, 0.75, enabledShapes()));
+  const sizeForDistance = () => setArea(undefined, undefined, RouteArt.radiusFor(+dist.value * 1000, 0.75, enabledShapes().length ? enabledShapes() : RouteArt.SHAPES));
   $("fit").onclick = () => { sizeForDistance(); map.fitBounds(circle.getBounds(), { padding: [30, 30] }); };
-  dist.addEventListener("input", () => { if (fitCount() < 3) sizeForDistance(); else circleInfo(); });
-  lib.addEventListener("click", () => setTimeout(circleInfo, 0));
+  state.mapReady = true;
+  const fewFit = () => { const t = enabledShapes().length; return t > 0 && fitCount() < Math.min(3, t); };
+  dist.addEventListener("input", () => { if (fewFit()) sizeForDistance(); else circleInfo(); });
+  syncLib();
 
   /* start/finish pin */
   function setStart(lat, lon, label) {
@@ -2018,7 +2040,7 @@ out skel qt;`;
       const hit = await geocode(q);
       if (!hit) { setStatus(`Couldn't find "${q}".`); return; }
       setArea(hit.lat, hit.lon);
-      if (fitCount() < 3) sizeForDistance();
+      if (fewFit()) sizeForDistance();
       map.fitBounds(circle.getBounds(), { padding: [30, 30] });
     } catch (err) { setStatus(err.message); }
   });
@@ -2140,6 +2162,7 @@ out skel qt;`;
     ev.preventDefault();
     const targetKm = +dist.value, targetM = targetKm * 1000;
     try { localStorage.setItem("raf-form", JSON.stringify({ d: targetKm })); } catch (e) {}
+    if (!state.enabled.size) { setStatus("No shapes selected. Pick at least one in the shape list."); document.querySelector(".library").scrollIntoView({ behavior: "smooth" }); return; }
     if (fitCount() < 1) { setStatus(`The circle is too small for a ${targetKm} km shape. Make it bigger or press "Size circle for this distance".`); return; }
     if (!startInside()) { setStatus("The start pin is outside the circle. Move one of them so the pin sits inside."); return; }
     $("go").disabled = true; routeLayer.clearLayers();
