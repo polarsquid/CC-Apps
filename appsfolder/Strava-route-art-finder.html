@@ -19,6 +19,110 @@
 try { const t = localStorage.getItem("raf-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
 function themeColour(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 </script>
+<script>
+/* Route Runner watch code encoder. The watch decodes this exact format: do not edit. */
+const RouteCode = (function () {
+  "use strict";
+  var ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  var EARTH_R = 6371000.0;
+  var DEG = Math.PI / 180.0;
+
+  function cleanName(name) {
+    return String(name || "Route")
+      .replace(/[~<>|&\\\r\n\t]/g, "-")
+      .trim()
+      .slice(0, 40) || "Route";
+  }
+
+  // Same projection as the watch: flat, centred on the start point.
+  function projector(lat0, lon0) {
+    var k = DEG * EARTH_R;
+    var c = Math.cos(lat0 * DEG);
+    return function (lat, lon) {
+      return [(lon - lon0) * k * c, (lat - lat0) * k];
+    };
+  }
+
+  // Douglas–Peucker on projected points; keeps first and last.
+  function simplify(xy, tol) {
+    var n = xy.length;
+    if (n < 3 || tol <= 0) return xy.map(function (_, i) { return i; });
+    var keep = new Uint8Array(n);
+    keep[0] = 1; keep[n - 1] = 1;
+    var stack = [[0, n - 1]];
+    var tol2 = tol * tol;
+    while (stack.length) {
+      var seg = stack.pop(), a = seg[0], b = seg[1];
+      var ax = xy[a][0], ay = xy[a][1], bx = xy[b][0], by = xy[b][1];
+      var vx = bx - ax, vy = by - ay, len2 = vx * vx + vy * vy;
+      var worst = -1, worstD = -1;
+      for (var i = a + 1; i < b; i++) {
+        var px = xy[i][0] - ax, py = xy[i][1] - ay, d2;
+        if (len2 === 0) {
+          d2 = px * px + py * py;
+        } else {
+          var t = Math.max(0, Math.min(1, (px * vx + py * vy) / len2));
+          var qx = px - t * vx, qy = py - t * vy;
+          d2 = qx * qx + qy * qy;
+        }
+        if (d2 > worstD) { worstD = d2; worst = i; }
+      }
+      if (worst >= 0 && worstD > tol2) {
+        keep[worst] = 1;
+        stack.push([a, worst], [worst, b]);
+      }
+    }
+    var out = [];
+    for (var j = 0; j < n; j++) if (keep[j]) out.push(j);
+    return out;
+  }
+
+  function writeVarint(v, out) {
+    var z = v >= 0 ? v * 2 : -v * 2 - 1;      // zigzag
+    while (z >= 32) {
+      out.push(ALPHA.charAt(32 | (z & 31)));
+      z = Math.floor(z / 32);
+    }
+    out.push(ALPHA.charAt(z));
+  }
+
+  function buildCode(name, lat6, lon6, xy, idx) {
+    var out = [];
+    var px = Math.round(xy[idx[0]][0]), py = Math.round(xy[idx[0]][1]);
+    for (var i = 1; i < idx.length; i++) {
+      var x = Math.round(xy[idx[i]][0]), y = Math.round(xy[idx[i]][1]);
+      writeVarint(x - px, out);
+      writeVarint(y - py, out);
+      px = x; py = y;
+    }
+    return "RR1~" + cleanName(name) + "~" + lat6 + "~" + lon6 + "~" + out.join("");
+  }
+
+  // points: array of {lat, lon} in file order (first point = start).
+  function encode(name, points, opts) {
+    opts = opts || {};
+    var maxLen = opts.maxLength || 2000;
+    var tol = opts.tolerance != null ? opts.tolerance : 1.5;
+    if (!points || points.length < 2) throw new Error("A route needs at least 2 points.");
+
+    var lat6 = Math.round(points[0].lat * 1e6), lon6 = Math.round(points[0].lon * 1e6);
+    var proj = projector(lat6 / 1e6, lon6 / 1e6);
+    var xy = points.map(function (p) { return proj(p.lat, p.lon); });
+
+    var idx, code;
+    for (var attempt = 0; attempt < 30; attempt++) {
+      idx = simplify(xy, tol);
+      code = buildCode(name, lat6, lon6, xy, idx);
+      if (code.length <= maxLen) break;
+      tol = tol * 1.4 + 0.5;
+    }
+    if (code.length > maxLen) throw new Error("Route is too long to fit in a route code.");
+    return { code: code, kept: idx.length, total: points.length, tolerance: tol };
+  }
+
+  return { encode: encode };
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=Syne:wght@800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>/* required styles */
@@ -864,7 +968,7 @@ button { border-radius: 4px; }
 .actions button { border: 0; padding: 4px 0; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
 .actions button:hover { text-decoration-color: var(--ink); }
 .actions button[aria-pressed=true] { padding: 4px 8px; text-decoration: none; }
-.actions button[data-a=gpx] { order: -1; flex-basis: 100%; background: var(--ink); color: var(--paper); text-decoration: none; padding: 10px 14px; font-weight: 600; }
+.actions button[data-a=gpx], .actions button[data-a=watch] { order: -1; flex: 1 1 calc(50% - 8px); background: var(--ink); color: var(--paper); text-decoration: none; padding: 10px 14px; font-weight: 600; }
 .more { border: 1.5px solid var(--ink); border-radius: 4px; }
 .shapes { gap: 6px; }
 .shape { background: transparent; border: 1px solid transparent; border-radius: 4px; }
@@ -893,6 +997,18 @@ button { border-radius: 4px; }
 #dist::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--ink); border: 0; cursor: ew-resize; }
 .ticks { position: relative; display: block; height: 14px; }
 .ticks span { position: absolute; top: 0; left: calc(8px + (100% - 16px) * var(--f)); transform: translateX(-50%); }
+.actions button[data-a=watch] { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); text-decoration: none; padding: 8.5px 14px; font-weight: 600; }
+#watchDlg { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 20px; border: 0; border-radius: 6px; background: var(--panel); color: var(--ink); box-shadow: 0 12px 40px rgba(0,0,0,.25); }
+#watchDlg [hidden] { display: none !important; }
+#watchDlg::backdrop { background: rgba(10, 12, 20, .45); }
+#watchDlg h3 { margin: 0; font: 600 20px/1.2 var(--body); letter-spacing: -.01em; }
+#watchDlg .wmeta { margin: 4px 0 12px; font: 500 12px var(--mono); color: var(--muted); }
+#watchCode { display: block; width: 100%; box-sizing: border-box; resize: vertical; padding: 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); font: 400 12px/1.45 var(--mono); word-break: break-all; -webkit-user-select: text; user-select: text; }
+#watchDlg .werr { margin: 0; padding: 12px; border-radius: 4px; background: var(--paper); color: var(--warn); font-size: 14px; }
+#watchDlg .wacts { display: flex; gap: 10px; margin-top: 14px; }
+#watchDlg .wacts button { flex: 1; padding: 11px 14px; border-radius: 4px; font: 600 14px var(--body); }
+#watchCopy { background: var(--ink); color: var(--paper); border: 0; }
+#watchClose { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
 </style>
 </head>
 <body>
@@ -2366,6 +2482,7 @@ out skel qt;`;
             <button type="button" data-a="outline" aria-pressed="false">Show target shape</button>
             <button type="button" data-a="png">Save image</button>
             <button type="button" data-a="gpx">Download GPX</button>
+            <button type="button" data-a="watch">Watch code</button>
             <button type="button" data-a="map">Show on map</button>
           </div>
         </div>`;
@@ -2379,6 +2496,7 @@ out skel qt;`;
       if (up) up.onclick = ev => { view.upright = !view.upright; ev.currentTarget.setAttribute("aria-pressed", String(view.upright)); redraw(); };
       card.querySelector("[data-a=map]").onclick = () => { state.showOnMap(r); document.querySelector(".where").scrollIntoView({ behavior: "smooth" }); };
       card.querySelector("[data-a=gpx]").onclick = () => saveBlob(new Blob([gpx(r)], { type: "application/gpx+xml" }), fileName(r, "gpx"));
+      card.querySelector("[data-a=watch]").onclick = () => showWatchCode(r);
       card.querySelector("[data-a=png]").onclick = async () => {
         const done = () => redraw();
         try { await drawMap(cv, r, view, false, true); cv.toBlob(b => { b ? saveBlob(b, fileName(r, "png")) : setStatus("Couldn't save that image."); done(); }); }
@@ -2390,6 +2508,41 @@ out skel qt;`;
   function saveBlob(blob, name) {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  /* Watch code panel for Route Runner: same name and lat/lon points as gpx(r), full precision, no elevation */
+  function showWatchCode(r) {
+    const name = `${r.shape} ${(r.length / 1000).toFixed(1)} km`;
+    let code = null, err = null;
+    try { code = RouteCode.encode(name, r.latlng.map(([lat, lon]) => ({ lat, lon }))).code; }
+    catch (e) { err = e && e.message ? e.message : String(e); }
+    let dlg = document.getElementById("watchDlg");
+    if (!dlg) {
+      dlg = document.createElement("dialog"); dlg.id = "watchDlg"; dlg.setAttribute("aria-labelledby", "watchName");
+      dlg.innerHTML = `<h3 id="watchName"></h3><p class="wmeta" id="watchMeta"></p>
+        <textarea id="watchCode" readonly rows="7" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Watch code"></textarea>
+        <p class="werr" id="watchErr" role="alert" hidden></p>
+        <div class="wacts"><button type="button" id="watchCopy">Copy</button><button type="button" id="watchClose">Close</button></div>`;
+      document.body.appendChild(dlg);
+      $("watchClose").onclick = () => dlg.close();
+      dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+      $("watchCopy").onclick = async () => {
+        const ta = $("watchCode"), btn = $("watchCopy"), text = ta.value;
+        let ok = false;
+        try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); ok = true; } } catch (e) {}
+        if (!ok) {
+          ta.focus(); ta.select(); ta.setSelectionRange(0, text.length);
+          try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+        }
+        btn.textContent = ok ? "Copied" : "Long-press the code to copy";
+        clearTimeout(btn._t); btn._t = setTimeout(() => { btn.textContent = "Copy"; }, ok ? 1500 : 3000);
+      };
+    }
+    $("watchName").textContent = name;
+    $("watchMeta").textContent = code ? `${code.length.toLocaleString()} characters` : "No code";
+    $("watchCode").value = code || ""; $("watchCode").hidden = !code; $("watchCopy").hidden = !code;
+    $("watchErr").textContent = err || ""; $("watchErr").hidden = !err;
+    $("watchCopy").textContent = "Copy";
+    if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
   }
   function gpx(r) {
     const name = `${r.shape} ${(r.length / 1000).toFixed(1)} km`;
