@@ -4,6 +4,52 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Route Art Finder</title>
+<!-- ================================================================
+     COLOURS: edit this block to restyle the whole page.
+     Any CSS colour works: #8E3B46, rgb(142 59 70), etc.
+     ================================================================ -->
+<style id="theme">
+:root {
+  /* Main colour: title, routes, search circle, Find Routes button, shape fills */
+  --accent: #8E3B46;
+  /* Text on top of the main colour (the Find Routes button) */
+  --on-accent: #ffffff;
+  /* Main colour when the device is in dark mode (a lighter version reads better) */
+  --accent-on-dark: #c9707c;
+
+  /* Page, light mode */
+  --paper: #f2f3ee;   /* page background */
+  --panel: #ffffff;   /* cards and map frame */
+  --ink: #1a1e1c;     /* text, buttons, selected options */
+  --muted: #646b66;   /* secondary text */
+  --line: #d8dbd2;    /* thin rules and borders */
+  --warn: #9a6400;    /* "weak match" and warnings */
+  --ok: #1f7a4d;
+
+  /* Route images (cards and saved PNGs). These stay the same in dark mode. */
+  --map-bg: #e9ebe5;    /* shown while map tiles load */
+  --map-ink: #1a1e1c;   /* start/finish dot, labels, target outline */
+  --map-muted: #646b66;
+  --map-halo: #ffffff;  /* white edge around the route line */
+
+  /* How see-through the fills are (0% = invisible, 100% = solid) */
+  --accent-soft: color-mix(in srgb, var(--route) 14%, transparent);
+  --shape-on-fill: color-mix(in srgb, var(--accent) 32%, transparent);
+
+  --route: var(--accent);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #121513; --panel: #1b1f1d; --ink: #e9ebe5; --muted: #9aa19c; --line: #2e3430;
+    --warn: #e2b04a; --ok: #5cc795;
+    --route: var(--accent-on-dark);
+  }
+}
+</style>
+<script>
+/* Reads a colour from the block above, for the parts drawn by script (map images, map circle). */
+function themeColour(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=Syne:wght@800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>/* required styles */
@@ -677,18 +723,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
 <style>
 /* Layout: control column on the left like a race-day pace card, results as three map prints on the right */
 :root {
-  --paper: #f2f3ee; --panel: #ffffff; --ink: #1a1e1c; --muted: #646b66; --line: #d8dbd2;
-  --route: #8E3B46; --route-soft: rgba(142, 59, 70, .14); --ok: #1f7a4d; --warn: #9a6400;
+  --route-soft: var(--accent-soft);
   --display: "Syne", "Arial Black", sans-serif;
   --title: "Barlow Condensed", "Arial Narrow", sans-serif;
   --body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root { --paper: #121513; --panel: #1b1f1d; --ink: #e9ebe5; --muted: #9aa19c; --line: #2e3430;
-    --route: #c9707c; --route-soft: rgba(201, 112, 124, .2); --ok: #5cc795; --warn: #e2b04a; color-scheme: dark; }
-}
+@media (prefers-color-scheme: dark) { :root { color-scheme: dark; } }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--body); }
@@ -714,7 +756,7 @@ input[type=text]:focus-visible, button:focus-visible, input[type=range]:focus-vi
 input[type=range] { width: 100%; accent-color: var(--route); }
 .ticks { display: flex; justify-content: space-between; font: 11px var(--mono); color: var(--muted); }
 button { font: 600 15px var(--body); cursor: pointer; border-radius: 6px; }
-.go { background: var(--route); color: #fff; border: 0; padding: 13px 16px; font: 700 20px/1 var(--display); text-transform: uppercase; letter-spacing: .04em; }
+.go { background: var(--route); color: var(--on-accent); border: 0; padding: 13px 16px; font: 700 20px/1 var(--display); text-transform: uppercase; letter-spacing: .04em; }
 .go:disabled { opacity: .55; cursor: progress; }
 .status { font: 13px/1.45 var(--mono); color: var(--muted); min-height: 1.4em; }
 .bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
@@ -728,7 +770,7 @@ button { font: 600 15px var(--body); cursor: pointer; border-radius: 6px; }
 @media (max-width: 1100px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 620px) { .cards { grid-template-columns: 1fr; } }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
-.card canvas { width: 100%; aspect-ratio: 1; display: block; background: #e9ebe5; }
+.card canvas { width: 100%; aspect-ratio: 1; display: block; background: var(--map-bg); }
 .card .body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
 .card h3 { margin: 0; font: 700 24px/1 var(--display); text-transform: uppercase; display: flex; justify-content: space-between; gap: 8px; }
 .card h3 span { font-variant-numeric: tabular-nums; }
@@ -774,7 +816,7 @@ button { font: 600 15px var(--body); cursor: pointer; border-radius: 6px; }
 
 .where { margin-bottom: 32px; }
 .mapbox { position: relative; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
-#map { height: 460px; width: 100%; background: #e9ebe5; }
+#map { height: 460px; width: 100%; background: var(--map-bg); }
 @media (max-width: 620px) { #map { height: 380px; } }
 .mapsearch { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 500; display: flex; gap: 6px; max-width: 420px; }
 .mapsearch input { box-shadow: 0 2px 10px rgba(0,0,0,.12); background: var(--panel); }
@@ -783,9 +825,9 @@ button { font: 600 15px var(--body); cursor: pointer; border-radius: 6px; }
 .mapfoot strong { color: var(--ink); font-variant-numeric: tabular-nums; }
 .mapfoot .warn { color: var(--warn); }
 .mapfoot button { background: transparent; border: 1px solid var(--line); color: var(--ink); padding: 5px 10px; font-size: 13px; }
-.handle { width: 22px !important; height: 22px !important; margin: -11px 0 0 -11px !important; border-radius: 50%; background: #fff; border: 3px solid #8E3B46; box-shadow: 0 1px 4px rgba(0,0,0,.3); cursor: grab; }
-.handle.centre { background: #8E3B46; border-color: #fff; }
-.sfpin { width: 34px !important; height: 34px !important; margin: -17px 0 0 -17px !important; border-radius: 50%; background: #1a1e1c; border: 3px solid #fff; color: #fff; font: 700 13px/28px "Barlow Condensed", sans-serif; text-align: center; box-shadow: 0 1px 5px rgba(0,0,0,.35); cursor: grab; }
+.handle { width: 22px !important; height: 22px !important; margin: -11px 0 0 -11px !important; border-radius: 50%; background: var(--map-halo); border: 3px solid var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,.3); cursor: grab; }
+.handle.centre { background: var(--accent); border-color: var(--map-halo); }
+.sfpin { width: 34px !important; height: 34px !important; margin: -17px 0 0 -17px !important; border-radius: 50%; background: var(--map-ink); border: 3px solid var(--map-halo); color: var(--map-halo); font: 700 13px/28px "Barlow Condensed", sans-serif; text-align: center; box-shadow: 0 1px 5px rgba(0,0,0,.35); cursor: grab; }
 .picking #map { cursor: crosshair; }
 .startrow { display: flex; gap: 6px; }
 .startrow input { flex: 1; min-width: 0; }
@@ -860,7 +902,7 @@ button { border-radius: 4px; }
 .shapes { gap: 6px; }
 .shape { background: transparent; border: 1px solid transparent; border-radius: 4px; }
 .shape:hover { border-color: var(--line); }
-.shape svg polygon { fill: rgba(142, 59, 70, .32); stroke: var(--ink); stroke-width: 2; }
+.shape svg polygon { fill: var(--shape-on-fill); stroke: var(--ink); stroke-width: 2; }
 .shape[aria-pressed=false] { opacity: 1; color: var(--muted); }
 .shape[aria-pressed=false] svg polygon { fill: none; stroke: var(--muted); }
 .empty { border-radius: 4px; }
@@ -2012,7 +2054,7 @@ out skel qt;`;
   L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
     maxZoom: 16, attribution: "Tiles © Esri · Esri, HERE, Garmin, © OpenStreetMap contributors",
   }).on("tileload", () => { tilesOk++; }).on("tileerror", () => { if (++tileErrs >= 4 && !tilesOk) netBlocked(); }).addTo(map);
-  const circle = L.circle([area.lat, area.lon], { radius: area.r, color: "#8E3B46", weight: 3, fillColor: "#8E3B46", fillOpacity: 0.07 }).addTo(map);
+  const circle = L.circle([area.lat, area.lon], { radius: area.r, color: themeColour("--accent"), weight: 3, fillColor: themeColour("--accent"), fillOpacity: 0.07 }).addTo(map);
   const edgePoint = () => [area.lat, area.lon + area.r / (M_PER_DEG * Math.cos(area.lat * Math.PI / 180))];
   const centreH = L.marker([area.lat, area.lon], { draggable: true, keyboard: false, title: "Drag to move the running area", icon: L.divIcon({ className: "handle centre", iconSize: [22, 22] }) }).addTo(map);
   const edgeH = L.marker(edgePoint(), { draggable: true, keyboard: false, title: "Drag to resize the running area", icon: L.divIcon({ className: "handle", iconSize: [22, 22] }) }).addTo(map);
@@ -2102,8 +2144,8 @@ out skel qt;`;
 
   function showOnMap(r) {
     routeLayer.clearLayers();
-    L.polyline(r.latlng, { color: "#fff", weight: 9, opacity: 0.95 }).addTo(routeLayer);
-    L.polyline(r.latlng, { color: "#8E3B46", weight: 5 }).addTo(routeLayer);
+    L.polyline(r.latlng, { color: themeColour("--map-halo"), weight: 9, opacity: 0.95 }).addTo(routeLayer);
+    L.polyline(r.latlng, { color: themeColour("--accent"), weight: 5 }).addTo(routeLayer);
     map.fitBounds(L.latLngBounds(r.latlng).extend(circle.getBounds()), { padding: [30, 30] });
   }
   state.showOnMap = showOnMap;
@@ -2353,6 +2395,7 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
   /* view: {outline, upright}. Upright rotates the whole map so the shape reads the right way up. */
   async function drawMap(cv, r, view, noTiles = false, save = false) {
     const S = cv.width, ctx = cv.getContext("2d"), band = save ? 92 : 0, pad = 70;
+    const ACC = themeColour("--accent"), INK = themeColour("--map-ink"), MUTED = themeColour("--map-muted"), HALO = themeColour("--map-halo"), BG = themeColour("--map-bg");
     const ang = view.upright ? -r.o.rot : 0, ca = Math.cos(ang), sa = Math.sin(ang);
     const W0 = r.latlng.concat(r.outlineLL).map(([a, b]) => merc(a, b));
     // fit in the rotated frame
@@ -2363,7 +2406,7 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     const cxW = (mx + ((x0 + x1) / 2 * ca + (y0 + y1) / 2 * sa)) * world, cyW = (my + (-(x0 + x1) / 2 * sa + (y0 + y1) / 2 * ca)) * world;
     const C = [S / 2, (S - band) / 2];
     const P = ([la, lo]) => { const [x, y] = merc(la, lo), dx = x * world - cxW, dy = y * world - cyW; return [C[0] + dx * ca - dy * sa, C[1] + dx * sa + dy * ca]; };
-    ctx.fillStyle = "#e9ebe5"; ctx.fillRect(0, 0, S, S);
+    ctx.fillStyle = BG; ctx.fillRect(0, 0, S, S);
     if (!noTiles) {
       const tz = Math.max(0, Math.min(16, Math.round(zf))), span = 256 * 2 ** (zf - tz), R = S * 0.75;
       ctx.save(); ctx.translate(C[0], C[1]); ctx.rotate(ang);
@@ -2376,50 +2419,50 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
       ctx.fillStyle = "rgba(255,255,255,0.08)"; ctx.fillRect(0, 0, S, S);
     }
     const line = (pts, close) => { ctx.beginPath(); pts.forEach((p, i) => { const [x, y] = P(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); if (close) ctx.closePath(); };
-    if (view.outline) { line(r.outlineLL, true); ctx.setLineDash([14, 10]); ctx.lineWidth = 5; ctx.strokeStyle = "rgba(26,30,28,0.75)"; ctx.stroke(); ctx.setLineDash([]); }
+    if (view.outline) { line(r.outlineLL, true); ctx.setLineDash([14, 10]); ctx.lineWidth = 5; ctx.strokeStyle = INK; ctx.globalAlpha = 0.75; ctx.stroke(); ctx.globalAlpha = 1; ctx.setLineDash([]); }
     ctx.lineJoin = ctx.lineCap = "round";
-    line(r.latlng); ctx.lineWidth = 24; ctx.strokeStyle = "#ffffff"; ctx.stroke();
-    line(r.latlng); ctx.lineWidth = 13; ctx.strokeStyle = "#8E3B46"; ctx.stroke();
+    line(r.latlng); ctx.lineWidth = 24; ctx.strokeStyle = HALO; ctx.stroke();
+    line(r.latlng); ctx.lineWidth = 13; ctx.strokeStyle = ACC; ctx.stroke();
     const [sx, sy] = P(r.latlng[0]);
-    ctx.beginPath(); ctx.arc(sx, sy, 22, 0, Math.PI * 2); ctx.fillStyle = "#1a1e1c"; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = "#fff"; ctx.stroke();
-    ctx.fillStyle = "#fff"; ctx.font = "600 19px 'Instrument Sans', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("S/F", sx, sy + 1);
+    ctx.beginPath(); ctx.arc(sx, sy, 22, 0, Math.PI * 2); ctx.fillStyle = INK; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = HALO; ctx.stroke();
+    ctx.fillStyle = HALO; ctx.font = "600 19px 'Instrument Sans', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("S/F", sx, sy + 1);
     // reference inset (saved image only): the target shape exactly as it sits in this image
     if (save) {
     const ip = r.outlineLL.map(P), B = 230, bx = 22, by = 22;
     let a0 = Infinity, b0 = Infinity, a1 = -Infinity, b1 = -Infinity;
     for (const [x, y] of ip) { a0 = Math.min(a0, x); b0 = Math.min(b0, y); a1 = Math.max(a1, x); b1 = Math.max(b1, y); }
     const k = (B - 44) / Math.max(a1 - a0, b1 - b0), ox = bx + (B - (a1 - a0) * k) / 2, oy = by + 12 + (B - 30 - (b1 - b0) * k) / 2;
-    ctx.fillStyle = "rgba(255,255,255,0.94)"; ctx.strokeStyle = "rgba(26,30,28,.15)"; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, B, B + 8, 14) : ctx.rect(bx, by, B, B + 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = HALO; ctx.strokeStyle = MUTED; ctx.lineWidth = 2; ctx.globalAlpha = 0.94;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, B, B + 8, 14) : ctx.rect(bx, by, B, B + 8); ctx.fill(); ctx.globalAlpha = 0.2; ctx.stroke(); ctx.globalAlpha = 1;
     ctx.beginPath(); ip.forEach(([x, y], i) => { const X = ox + (x - a0) * k, Y = oy + (y - b0) * k; i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.closePath();
-    ctx.fillStyle = "rgba(142,59,70,.14)"; ctx.fill(); ctx.lineWidth = 4; ctx.lineJoin = "round"; ctx.strokeStyle = "#8E3B46"; ctx.stroke();
-    ctx.fillStyle = "#1a1e1c"; ctx.font = "600 22px 'Instrument Sans', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = ACC; ctx.globalAlpha = 0.14; ctx.fill(); ctx.globalAlpha = 1; ctx.lineWidth = 4; ctx.lineJoin = "round"; ctx.strokeStyle = ACC; ctx.stroke();
+    ctx.fillStyle = INK; ctx.font = "600 22px 'Instrument Sans', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
     ctx.fillText("Target shape", bx + B / 2, by + B - 2);
     }
     // north arrow when the map is turned
     if (ang) {
       const nx = S - 60, ny = 70;
       ctx.save(); ctx.translate(nx, ny); ctx.rotate(ang);
-      ctx.fillStyle = "rgba(255,255,255,.94)"; ctx.beginPath(); ctx.arc(0, 0, 34, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#1a1e1c"; ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(11, 8); ctx.lineTo(0, 2); ctx.lineTo(-11, 8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = HALO; ctx.beginPath(); ctx.arc(0, 0, 34, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = INK; ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(11, 8); ctx.lineTo(0, 2); ctx.lineTo(-11, 8); ctx.closePath(); ctx.fill();
       ctx.font = "600 16px 'Instrument Sans', sans-serif"; ctx.textAlign = "center"; ctx.fillText("N", 0, 26);
       ctx.restore();
     }
     // label band (saved image only)
     if (save) {
-    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, S - band, S, band);
-    ctx.fillStyle = "#8E3B46"; ctx.fillRect(0, S - band, 10, band);
-    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillStyle = "#1a1e1c";
+    ctx.fillStyle = HALO; ctx.fillRect(0, S - band, S, band);
+    ctx.fillStyle = ACC; ctx.fillRect(0, S - band, 10, band);
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillStyle = INK;
     ctx.font = "600 44px 'Instrument Sans', sans-serif";
     ctx.fillText(r.shape, 36, S - 32);
     ctx.textAlign = "right"; ctx.font = "800 44px 'Syne', sans-serif"; ctx.fillText(`${(r.length / 1000).toFixed(1)} km`, S - 32, S - 32);
     if (state.elevOn && r.elev) {
       const kmW = ctx.measureText(`${(r.length / 1000).toFixed(1)} KM`).width;
-      ctx.font = "500 28px 'Instrument Sans', sans-serif"; ctx.fillStyle = "#646b66";
+      ctx.font = "500 28px 'Instrument Sans', sans-serif"; ctx.fillStyle = MUTED;
       ctx.fillText(`↑ ${r.elev.gain} m`, S - 32 - kmW - 24, S - 34);
     }
     }
-    ctx.font = "400 15px 'JetBrains Mono', monospace"; ctx.fillStyle = "rgba(26,30,28,.7)";
+    ctx.font = "400 15px 'JetBrains Mono', monospace"; ctx.fillStyle = MUTED;
     ctx.fillText(noTiles ? "© OpenStreetMap contributors" : "Tiles © Esri · Data © OpenStreetMap contributors", S - 14, S - band - 12);
   }
   if (document.fonts) document.fonts.ready.then(() => {});
