@@ -4,50 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Route Art Finder</title>
-<!-- ================================================================
-     COLOURS: edit this block to restyle the whole page.
-     Any CSS colour works: #8E3B46, rgb(142 59 70), etc.
-     ================================================================ -->
-<style id="theme">
-:root {
-  /* Main colour: title, routes, search circle, Find Routes button, shape fills */
-  --accent: #8E3B46;
-  /* Text on top of the main colour (the Find Routes button) */
-  --on-accent: #ffffff;
-  /* Main colour when the device is in dark mode (a lighter version reads better) */
-  --accent-on-dark: #c9707c;
-
-  /* Page, light mode */
-  --paper: #f2f3ee;   /* page background */
-  --panel: #ffffff;   /* cards and map frame */
-  --ink: #1a1e1c;     /* text, buttons, selected options */
-  --muted: #646b66;   /* secondary text */
-  --line: #d8dbd2;    /* thin rules and borders */
-  --warn: #9a6400;    /* "weak match" and warnings */
-  --ok: #1f7a4d;
-
-  /* Route images (cards and saved PNGs). These stay the same in dark mode. */
-  --map-bg: #e9ebe5;    /* shown while map tiles load */
-  --map-ink: #1a1e1c;   /* start/finish dot, labels, target outline */
-  --map-muted: #646b66;
-  --map-halo: #ffffff;  /* white edge around the route line */
-
-  /* How see-through the fills are (0% = invisible, 100% = solid) */
-  --accent-soft: color-mix(in srgb, var(--route) 14%, transparent);
-  --shape-on-fill: color-mix(in srgb, var(--accent) 32%, transparent);
-
-  --route: var(--accent);
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #121513; --panel: #1b1f1d; --ink: #e9ebe5; --muted: #9aa19c; --line: #2e3430;
-    --warn: #e2b04a; --ok: #5cc795;
-    --route: var(--accent-on-dark);
-  }
-}
+<style>
+/* Colour themes, switched with the tabs at the bottom of the sidebar. */
+:root, [data-theme=sunrise] { --paper: #fbf5ec; --panel: #fff; --ink: #1d2340; --muted: #6b6e84; --line: #e8ddcc; --accent: #ff5a36; --warn: #b4540a; color-scheme: light; }
+[data-theme=lagoon]  { --paper: #edf7f5; --panel: #fff; --ink: #08303a; --muted: #4f7279; --line: #cde4e0; --accent: #00a396; --warn: #9a6400; }
+[data-theme=bush]    { --paper: #f1f2e8; --panel: #fbfbf6; --ink: #1f2a1a; --muted: #687160; --line: #d9dccb; --accent: #4c7a2e; --warn: #9a6400; }
+[data-theme=plain]   { --paper: #ffffff; --panel: #ffffff; --ink: #111111; --muted: #767676; --line: #e6e6e6; --accent: #111111; --warn: #8a5a00; }
+[data-theme=harbour] { --paper: #eaf1f5; --panel: #fff; --ink: #0b1f33; --muted: #557083; --line: #cfdde5; --accent: #0057ff; --warn: #9a6400; }
+[data-theme=night]   { --paper: #12141a; --panel: #1c1f27; --ink: #f2f0e9; --muted: #9a9ca8; --line: #2d313c; --accent: #9b7bff; --warn: #e2b04a; color-scheme: dark; }
+:root { --route: var(--accent); --route-soft: color-mix(in srgb, var(--accent) 14%, transparent); --shape-on-fill: color-mix(in srgb, var(--accent) 32%, transparent);
+  --on-accent: #fff; --map-bg: #e9ebe5; --map-ink: #1a1e1c; --map-muted: #646b66; --map-halo: #fff; --ok: #1f7a4d; }
 </style>
 <script>
-/* Reads a colour from the block above, for the parts drawn by script (map images, map circle). */
+try { const t = localStorage.getItem("raf-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
 function themeColour(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -723,14 +692,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 <style>
 /* Layout: control column on the left like a race-day pace card, results as three map prints on the right */
 :root {
-  --route-soft: var(--accent-soft);
   --display: "Syne", "Arial Black", sans-serif;
   --title: "Barlow Condensed", "Arial Narrow", sans-serif;
   --body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
-  color-scheme: light;
 }
-@media (prefers-color-scheme: dark) { :root { color-scheme: dark; } }
+
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--body); }
@@ -906,6 +873,18 @@ button { border-radius: 4px; }
 .shape[aria-pressed=false] { opacity: 1; color: var(--muted); }
 .shape[aria-pressed=false] svg polygon { fill: none; stroke: var(--muted); }
 .empty { border-radius: 4px; }
+.themes { margin-top: auto; border-top: 1px solid var(--line); padding-top: 18px; }
+.lbl em#themeName { color: var(--ink); font: 600 12px var(--body); margin-left: 6px; }
+.track { --p: 0%; position: relative; display: flex; justify-content: space-between; align-items: center; height: 28px; margin: 4px 6px 0; }
+.track::before, .track::after { content: ""; position: absolute; top: 50%; height: 0; left: 11px; }
+.track::before { right: 11px; border-top: 2px dashed var(--line); }
+.track::after { width: calc((100% - 22px) * var(--p)); border-top: 2.5px solid var(--ink); }
+.track button { position: relative; z-index: 1; width: 22px; height: 22px; padding: 0; border-radius: 50%; display: grid; place-items: center; background: transparent; border: 0; }
+.track button::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--paper); border: 2px solid var(--muted); transition: transform .15s; }
+.track button.past::before { background: var(--ink); border-color: var(--ink); }
+.track button:hover::before { transform: scale(1.3); }
+.track button[aria-pressed=true]::before { width: 18px; height: 18px; background: var(--c); border: 0; box-shadow: 0 0 0 2.5px var(--paper), 0 0 0 4.5px var(--c); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -949,6 +928,10 @@ button { border-radius: 4px; }
       <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
       <div class="status" id="status" role="status">Ready. Street data comes from OpenStreetMap.</div>
       <p class="hint">Streets load in a few seconds. Repeat searches in the same area reuse them.</p>
+      <div class="field themes">
+        <span class="lbl">Colour theme <em id="themeName"></em></span>
+        <div class="track" id="themeTabs" role="group" aria-label="Colour theme"><button type="button" data-t="sunrise" title="Sunrise" style="--c:#ff5a36"><span class="sr">Sunrise</span></button><button type="button" data-t="lagoon" title="Lagoon" style="--c:#00a396"><span class="sr">Lagoon</span></button><button type="button" data-t="harbour" title="Harbour" style="--c:#0057ff"><span class="sr">Harbour</span></button><button type="button" data-t="bush" title="Bush" style="--c:#4c7a2e"><span class="sr">Bush</span></button><button type="button" data-t="plain" title="Plain" style="--c:#111111"><span class="sr">Plain</span></button><button type="button" data-t="night" title="Night" style="--c:#9b7bff"><span class="sr">Night</span></button></div>
+      </div>
     </form>
 
     <main>
@@ -2149,6 +2132,25 @@ out skel qt;`;
     map.fitBounds(L.latLngBounds(r.latlng).extend(circle.getBounds()), { padding: [30, 30] });
   }
   state.showOnMap = showOnMap;
+
+  /* colour theme tabs: canvases and map layers read colours when drawn, so redraw them on a switch */
+  const tabs = [...document.querySelectorAll("#themeTabs button")];
+  const markTab = () => {
+    let t = document.documentElement.dataset.theme || "sunrise", i = tabs.findIndex(b => b.dataset.t === t);
+    if (i < 0) { i = 0; t = "sunrise"; document.documentElement.dataset.theme = t; }
+    tabs.forEach((b, j) => { b.setAttribute("aria-pressed", String(j === i)); b.classList.toggle("past", j < i); });
+    $("themeTabs").style.setProperty("--p", i / (tabs.length - 1));
+    $("themeName").textContent = tabs[i].title;
+  };
+  tabs.forEach(b => b.onclick = () => {
+    document.documentElement.dataset.theme = b.dataset.t; markTab();
+    try { localStorage.setItem("raf-theme", b.dataset.t); } catch (e) {}
+    const acc = themeColour("--accent");
+    circle.setStyle({ color: acc, fillColor: acc });
+    routeLayer.eachLayer(l => { if (l.options.weight === 5) l.setStyle({ color: acc }); });
+    if (state.results && state.results.length) showPage();
+  });
+  markTab();
 
   /* ---------- elevation (Mapzen/AWS Terrarium elevation tiles, decoded in the browser) ---------- */
   const ELEV_Z = 14;
