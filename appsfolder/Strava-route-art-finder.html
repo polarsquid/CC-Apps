@@ -2010,10 +2010,13 @@ if (typeof module !== "undefined") module.exports = StreetTiles;
 
   /* ---------- controls ---------- */
   const dist = $("dist");
-  const showDist = () => { $("distOut").textContent = (+dist.value).toString(); };
+  /* number and filled bar always update together */
+  const showDist = () => {
+    $("distOut").textContent = (+dist.value).toString();
+    dist.style.setProperty("--f", (dist.value - dist.min) / (dist.max - dist.min));
+  };
   dist.oninput = showDist; showDist();
-  const fillDist = () => dist.style.setProperty("--f", (dist.value - dist.min) / (dist.max - dist.min));
-  dist.addEventListener("input", fillDist); fillDist();
+  window.addEventListener("pageshow", showDist); // the browser can restore the slider after a refresh or Back
   try { const saved = JSON.parse(localStorage.getItem("raf-form") || "null"); if (saved && saved.d) { dist.value = saved.d; showDist(); } } catch (e) {}
 
   state.per = 6;
