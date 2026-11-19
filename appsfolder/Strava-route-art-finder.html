@@ -885,6 +885,14 @@ button { border-radius: 4px; }
 .track button:hover::before { transform: scale(1.3); }
 .track button[aria-pressed=true]::before { width: 18px; height: 18px; background: var(--c); border: 0; box-shadow: 0 0 0 2.5px var(--paper), 0 0 0 4.5px var(--c); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* distance slider: fixed 16px handle so the tick labels can sit exactly under their values */
+#dist { -webkit-appearance: none; appearance: none; height: 16px; margin: 4px 0 0; background: transparent; --f: .4444; }
+#dist::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--ink) calc(8px + (100% - 16px) * var(--f)), var(--line) 0); }
+#dist::-moz-range-track { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--ink) calc(8px + (100% - 16px) * var(--f)), var(--line) 0); }
+#dist::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: var(--ink); border: 0; cursor: ew-resize; }
+#dist::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--ink); border: 0; cursor: ew-resize; }
+.ticks { position: relative; display: block; height: 14px; }
+.ticks span { position: absolute; top: 0; left: calc(8px + (100% - 16px) * var(--f)); transform: translateX(-50%); }
 </style>
 </head>
 <body>
@@ -900,7 +908,7 @@ button { border-radius: 4px; }
         <span class="lbl">Target distance</span>
         <div class="dist"><output id="distOut">10</output><small>km</small><span class="tol">±1 km</span></div>
         <input type="range" id="dist" min="2" max="20" step="0.5" value="10" aria-label="Target distance in kilometres">
-        <div class="ticks"><span>2</span><span>5</span><span>10</span><span>15</span><span>20</span></div>
+        <div class="ticks"><span style="--f:0.0000">2</span><span style="--f:0.1667">5</span><span style="--f:0.4444">10</span><span style="--f:0.7222">15</span><span style="--f:1.0000">20</span></div>
       </div>
       <div class="field">
         <span class="lbl">Start and finish <em>(optional)</em></span>
@@ -1052,7 +1060,6 @@ const RouteArt = (() => {
     ["Music note", [[0.3, 12.5], [2.6, 13], [4, 11.6], [4, 3.2], [8, 5], [8, 2.8], [4, 0.2], [3, 0.2], [3, 9.8], [1.2, 10], [0, 11.2]]],
     ["Apple", [[5, 2.5], [5.4, 0.3], [6.2, 0.3], [5.9, 2.1], [6.5, 1.6], [8.5, 1.8], [10, 3.5], [10.3, 6], [9.3, 8.8], [7.5, 10.2], [6, 9.9], [5, 9.5], [4, 9.9], [2.5, 10.2], [0.7, 8.8], [-0.3, 6], [0, 3.5], [1.5, 1.8], [3.5, 1.6]]],
     ["Kangaroo", [[13, 3.2], [12.2, 4.0], [10.8, 4.6], [10.4, 6.0], [11.6, 6.6], [11.6, 7.2], [10.2, 7.0], [9.8, 8.6], [10.2, 10.0], [12.8, 11.4], [12.6, 12], [8.4, 12], [7.4, 10.6], [6.2, 10.4], [0.4, 12.4], [0, 11.3], [5.6, 8.6], [6.6, 6.0], [8.6, 3.8], [10.0, 2.6], [10.0, 0.2], [10.6, 0], [11.0, 2.0], [12.0, 2.3]]],
-    ["Australia", australiaPts()],
     ["Opera House", [[0, 10], [15, 10], [15, 8.2], [13.8, 8.2], [13.6, 6.0], [12.6, 3.6], [11.4, 6.6], [11.2, 3.4], [10.0, 0.4], [8.6, 5.0], [8.4, 2.4], [7.2, -1.2], [5.8, 4.2], [5.2, 2.2], [4.0, 0.4], [3.0, 5.0], [2.6, 3.6], [1.8, 2.6], [1.0, 8.2], [0, 8.2]]],
     ["Harbour Bridge", bridgePts()],
     ["Boomerang", [[0, 6.6], [1.6, 4.2], [3.8, 2.0], [6, 0.5], [7, 0.2], [8, 0.5], [10.2, 2.0], [12.4, 4.2], [14, 6.6], [13.6, 7.6], [12.6, 7.8], [11.0, 6.0], [9.0, 4.2], [7, 3.2], [5, 4.2], [3, 6.0], [1.4, 7.8], [0.4, 7.6]]],
@@ -1072,15 +1079,16 @@ const RouteArt = (() => {
     ["Flying bird", [[0, 1], [2, 0.2], [4, 0.2], [6, 1.6], [7.2, 2.8], [8, 3], [8.8, 2.8], [10, 1.6], [12, 0.2], [14, 0.2], [16, 1], [15.2, 2.5], [12.8, 2.5], [11.2, 3.6], [9.4, 5], [8, 5.8], [6.6, 5], [4.8, 3.6], [3.2, 2.5], [0.8, 2.5]]],
     ["Sword", [[2, 0], [2.7, 1.2], [2.7, 9], [4.6, 9], [4.6, 10.2], [2.5, 10.2], [2.5, 12.6], [3.0, 12.8], [3.0, 14], [1.0, 14], [1.0, 12.8], [1.5, 12.6], [1.5, 10.2], [-0.6, 10.2], [-0.6, 9], [1.3, 9], [1.3, 1.2]]],
   ];
-  /* Words and lettering. Anything listed here is only ever rotated, never mirrored,
-     so it can't come out reading backwards. Add new word shapes to this list. */
-  const TEXT_SHAPES = [
+  /* Non-flip shapes: only ever rotated, never mirrored, because a mirror image would look wrong
+     (words reading backwards, a back-to-front Australia). Add any such shape to this list. */
+  const NO_FLIP_SHAPES = [
+    ["Australia", australiaPts()],
     ["RUN (block)", RUN_CAPS],
     ["run (lowercase)", RUN_LOWER],
     ["RUN (italic)", RUN_CAPS.map(([x, y]) => [x + (5 - y) * 0.32, y])],
     ["RUN (tall)", RUN_CAPS.map(([x, y]) => [x * 0.72, y * 1.25])],
   ];
-  for (const [n, p, sym] of TEXT_SHAPES) RAW_SHAPES.push([n, p, { ...sym, text: true }]);
+  for (const [n, p, sym] of NO_FLIP_SHAPES) RAW_SHAPES.push([n, p, { ...sym, noFlip: true }]);
 
   function perimeter(pts) {
     let s = 0;
@@ -1093,7 +1101,7 @@ const RouteArt = (() => {
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, per = perimeter(raw);
     const pts = raw.map(([x, y]) => [(x - cx) / per, (y - cy) / per]);
     let maxR = 0; for (const [x, y] of pts) maxR = Math.max(maxR, Math.hypot(x, y));
-    return { name, pts, maxR, symRot: sym.symRot || TAU, mirror: !!(sym.mirror || sym.text) }; // text is never flipped
+    return { name, pts, maxR, symRot: sym.symRot || TAU, mirror: !!(sym.mirror || sym.noFlip) }; // non-flip shapes are only rotated
   }
   const SHAPES = RAW_SHAPES.map(([n, p, sym]) => normalise(n, p, sym));
 
@@ -1885,6 +1893,8 @@ if (typeof module !== "undefined") module.exports = StreetTiles;
   const dist = $("dist");
   const showDist = () => { $("distOut").textContent = (+dist.value).toString(); };
   dist.oninput = showDist; showDist();
+  const fillDist = () => dist.style.setProperty("--f", (dist.value - dist.min) / (dist.max - dist.min));
+  dist.addEventListener("input", fillDist); fillDist();
   try { const saved = JSON.parse(localStorage.getItem("raf-form") || "null"); if (saved && saved.d) { dist.value = saved.d; showDist(); } } catch (e) {}
 
   state.per = 6;
