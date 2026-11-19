@@ -16,5 +16,5 @@ A place to keep all my web apps: tests, drafts, linking to other repos and an in
 - Strava Art Route Finder
 
 side notes/projects:
-https://perchance.org/storyboard-creator#edit
-Route Runner (Garmin App for Venu 3s)https://apps.garmin.com/apps/e7844223-b832-46ba-bddb-9bb44cecf483
+- https://perchance.org/storyboard-creator#edit
+- Route Runner (Garmin App for Venu 3s)https://apps.garmin.com/apps/e7844223-b832-46ba-bddb-9bb44cecf483
