@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Route Art Finder</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=Syne:wght@800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>/* required styles */
 
 .leaflet-pane,
@@ -678,22 +678,23 @@ svg.leaflet-image-layer.leaflet-interactive path {
 /* Layout: control column on the left like a race-day pace card, results as three map prints on the right */
 :root {
   --paper: #f2f3ee; --panel: #ffffff; --ink: #1a1e1c; --muted: #646b66; --line: #d8dbd2;
-  --route: #d3176f; --route-soft: #fbe3ee; --ok: #1f7a4d; --warn: #9a6400;
-  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
-  --body: "Barlow", "Helvetica Neue", Arial, sans-serif;
+  --route: #8E3B46; --route-soft: rgba(142, 59, 70, .14); --ok: #1f7a4d; --warn: #9a6400;
+  --display: "Syne", "Arial Black", sans-serif;
+  --title: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root { --paper: #121513; --panel: #1b1f1d; --ink: #e9ebe5; --muted: #9aa19c; --line: #2e3430;
-    --route: #ff4f9a; --route-soft: #3a1a29; --ok: #5cc795; --warn: #e2b04a; color-scheme: dark; }
+    --route: #c9707c; --route-soft: rgba(201, 112, 124, .2); --ok: #5cc795; --warn: #e2b04a; color-scheme: dark; }
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--body); }
 .wrap { max-width: 1320px; margin: 0 auto; padding: 28px max(16px, env(safe-area-inset-right, 0px)) 60px max(16px, env(safe-area-inset-left, 0px)); }
 header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
-h1 { font: 700 44px/1 var(--display); letter-spacing: .01em; text-transform: uppercase; margin: 0; }
+h1 { font: 700 44px/1 var(--title); letter-spacing: .01em; text-transform: uppercase; margin: 0; }
 h1 span { color: var(--route); }
 header p { margin: 0; color: var(--muted); max-width: 60ch; }
 .layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 28px; align-items: start; }
@@ -782,8 +783,8 @@ button { font: 600 15px var(--body); cursor: pointer; border-radius: 6px; }
 .mapfoot strong { color: var(--ink); font-variant-numeric: tabular-nums; }
 .mapfoot .warn { color: var(--warn); }
 .mapfoot button { background: transparent; border: 1px solid var(--line); color: var(--ink); padding: 5px 10px; font-size: 13px; }
-.handle { width: 22px !important; height: 22px !important; margin: -11px 0 0 -11px !important; border-radius: 50%; background: #fff; border: 3px solid #d3176f; box-shadow: 0 1px 4px rgba(0,0,0,.3); cursor: grab; }
-.handle.centre { background: #d3176f; border-color: #fff; }
+.handle { width: 22px !important; height: 22px !important; margin: -11px 0 0 -11px !important; border-radius: 50%; background: #fff; border: 3px solid #8E3B46; box-shadow: 0 1px 4px rgba(0,0,0,.3); cursor: grab; }
+.handle.centre { background: #8E3B46; border-color: #fff; }
 .sfpin { width: 34px !important; height: 34px !important; margin: -17px 0 0 -17px !important; border-radius: 50%; background: #1a1e1c; border: 3px solid #fff; color: #fff; font: 700 13px/28px "Barlow Condensed", sans-serif; text-align: center; box-shadow: 0 1px 5px rgba(0,0,0,.35); cursor: grab; }
 .picking #map { cursor: crosshair; }
 .startrow { display: flex; gap: 6px; }
@@ -810,6 +811,59 @@ button { font: 600 15px var(--body); cursor: pointer; border-radius: 6px; }
 .empty strong { color: var(--ink); }
 .note { margin-top: 28px; font-size: 13px; color: var(--muted); max-width: 75ch; }
 .note a { color: inherit; }
+
+/* ---- identity pass: paper, ink, one colour for the route ---- */
+.controls { background: none; border: 0; border-radius: 0; padding: 0; gap: 22px; border-top: 2px solid var(--ink); padding-top: 18px; }
+.controls > .field + .field, .controls > .hint + .field { border-top: 1px solid var(--line); padding-top: 18px; }
+.lbl { font: 600 11px/1 var(--mono); letter-spacing: .06em; }
+input[type=text] { background: transparent; border: 0; border-bottom: 1.5px solid var(--ink); border-radius: 0; padding: 8px 0; }
+.mapsearch input { background: var(--panel); border: 0; border-radius: 4px; padding: 10px 12px; }
+input[type=text]:focus-visible, button:focus-visible, input[type=range]:focus-visible { outline-color: var(--ink); }
+input[type=range] { accent-color: var(--ink); }
+.dist output { font: 800 56px/1 var(--display); letter-spacing: -.04em; }
+.dist small { font: 600 16px var(--body); }
+button { border-radius: 4px; }
+.ghost { border-color: var(--ink); }
+.ghost[aria-pressed=true], .actions button[aria-pressed=true] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.seg { border: 1.5px solid var(--ink); border-radius: 4px; }
+.seg button { background: transparent; border-right: 1.5px solid var(--ink); font: 600 15px var(--body); }
+.toggle input:checked { background: var(--ink); }
+.toggle input:focus-visible { outline-color: var(--ink); }
+.go { font: 800 17px/1 var(--display); letter-spacing: .02em; padding: 16px; border-radius: 4px; }
+.bar { height: 2px; } .bar i { background: var(--ink); }
+.startset button { color: var(--ink); text-decoration: underline; }
+.section-h { border-top: 2px solid var(--ink); padding-top: 14px; }
+.section-h h2 { font: 800 24px/1.1 var(--display); letter-spacing: -.02em; text-transform: none; }
+.mapbox, .card { border-radius: 4px; }
+.card { border: 0; }
+.card .body { gap: 14px; padding: 16px 18px 18px; }
+.card h3 { font: 600 22px/1.1 var(--body); letter-spacing: -.02em; text-transform: none; justify-content: flex-start; align-items: baseline; gap: 10px; }
+.card h3 em { font: 500 12px var(--mono); font-style: normal; color: var(--warn); }
+.stats { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 8px 20px; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--line); }
+.stats dt { font: 500 11px var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.stats dd { margin: 6px 0 0; font: 800 21px/1 var(--display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stats dd small { font: 500 13px var(--body); letter-spacing: 0; color: var(--muted); margin-left: 3px; }
+.prof { height: 44px; }
+.prof .area { fill: none; }
+.prof .ln { stroke: var(--ink); stroke-width: 1.5; }
+.ref { flex-wrap: nowrap; justify-content: flex-start; gap: 10px; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
+.ref svg { width: 36px; height: 36px; flex: none; }
+.ref svg .tgt { fill: none; stroke: var(--ink); stroke-width: 1.8; }
+.ref .arrow { font-size: 14px; }
+.ref p { flex: 1; flex-basis: auto; text-align: left; font-size: 13px; color: var(--muted); }
+.actions { gap: 6px 16px; align-items: center; }
+.actions button { border: 0; padding: 4px 0; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
+.actions button:hover { text-decoration-color: var(--ink); }
+.actions button[aria-pressed=true] { padding: 4px 8px; text-decoration: none; }
+.actions button[data-a=gpx] { order: -1; flex-basis: 100%; background: var(--ink); color: var(--paper); text-decoration: none; padding: 10px 14px; font-weight: 600; }
+.more { border: 1.5px solid var(--ink); border-radius: 4px; }
+.shapes { gap: 6px; }
+.shape { background: transparent; border: 1px solid transparent; border-radius: 4px; }
+.shape:hover { border-color: var(--line); }
+.shape svg polygon { fill: rgba(142, 59, 70, .32); stroke: var(--ink); stroke-width: 2; }
+.shape[aria-pressed=false] { opacity: 1; color: var(--muted); }
+.shape[aria-pressed=false] svg polygon { fill: none; stroke: var(--muted); }
+.empty { border-radius: 4px; }
 </style>
 </head>
 <body>
@@ -823,7 +877,7 @@ button { font: 600 15px var(--body); cursor: pointer; border-radius: 6px; }
     <form class="controls" id="form" autocomplete="off">
       <div class="field">
         <span class="lbl">Target distance</span>
-        <div class="dist"><output id="distOut">10</output><small>KM</small><span class="tol">±1 km</span></div>
+        <div class="dist"><output id="distOut">10</output><small>km</small><span class="tol">±1 km</span></div>
         <input type="range" id="dist" min="2" max="20" step="0.5" value="10" aria-label="Target distance in kilometres">
         <div class="ticks"><span>2</span><span>5</span><span>10</span><span>15</span><span>20</span></div>
       </div>
@@ -1958,7 +2012,7 @@ out skel qt;`;
   L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
     maxZoom: 16, attribution: "Tiles © Esri · Esri, HERE, Garmin, © OpenStreetMap contributors",
   }).on("tileload", () => { tilesOk++; }).on("tileerror", () => { if (++tileErrs >= 4 && !tilesOk) netBlocked(); }).addTo(map);
-  const circle = L.circle([area.lat, area.lon], { radius: area.r, color: "#d3176f", weight: 3, fillColor: "#d3176f", fillOpacity: 0.07 }).addTo(map);
+  const circle = L.circle([area.lat, area.lon], { radius: area.r, color: "#8E3B46", weight: 3, fillColor: "#8E3B46", fillOpacity: 0.07 }).addTo(map);
   const edgePoint = () => [area.lat, area.lon + area.r / (M_PER_DEG * Math.cos(area.lat * Math.PI / 180))];
   const centreH = L.marker([area.lat, area.lon], { draggable: true, keyboard: false, title: "Drag to move the running area", icon: L.divIcon({ className: "handle centre", iconSize: [22, 22] }) }).addTo(map);
   const edgeH = L.marker(edgePoint(), { draggable: true, keyboard: false, title: "Drag to resize the running area", icon: L.divIcon({ className: "handle", iconSize: [22, 22] }) }).addTo(map);
@@ -2049,7 +2103,7 @@ out skel qt;`;
   function showOnMap(r) {
     routeLayer.clearLayers();
     L.polyline(r.latlng, { color: "#fff", weight: 9, opacity: 0.95 }).addTo(routeLayer);
-    L.polyline(r.latlng, { color: "#d3176f", weight: 5 }).addTo(routeLayer);
+    L.polyline(r.latlng, { color: "#8E3B46", weight: 5 }).addTo(routeLayer);
     map.fitBounds(L.latLngBounds(r.latlng).extend(circle.getBounds()), { padding: [30, 30] });
   }
   state.showOnMap = showOnMap;
@@ -2230,14 +2284,18 @@ out skel qt;`;
       const turned = r.orientation !== "upright" && r.orientation !== "mirrored";
       card.innerHTML = `<canvas width="1000" height="1000" role="img" aria-label="${r.shape} route, ${km} km"></canvas>
         <div class="body">
-          <h3>${r.shape}<span>${km} km</span></h3>
-          <div class="meta"><span class="chip ${r.looksLike ? "good" : "weak"}">${r.looksLike ? "Strong match" : "Weak match"} · ${pct}%</span></div>
-          ${state.elevOn ? (r.elev ? `<div class="elev"><div class="nums"><b>↑ ${r.elev.gain} m</b><span>climb</span><b>↓ ${r.elev.loss} m</b><span>descent</span></div>${profileSvg(r.elev)}</div>` : `<div class="elev"><span class="profax">Elevation data unavailable for this route.</span></div>`) : ""}
+          <h3>${r.shape}${r.looksLike ? "" : `<em>weak match</em>`}</h3>
+          <dl class="stats">
+            <div><dt>Distance</dt><dd>${km}<small>km</small></dd></div>
+            <div><dt>Fit</dt><dd>${pct}<small>%</small></dd></div>
+            ${state.elevOn && r.elev ? `<div><dt>Climb</dt><dd>${r.elev.gain}<small>m</small></dd></div>` : ""}
+          </dl>
+          ${state.elevOn ? (r.elev ? `<div class="elev">${profileSvg(r.elev)}</div>` : `<div class="elev"><span class="profax">Elevation data unavailable for this route.</span></div>`) : ""}
           <div class="ref">
-            <figure><svg viewBox="0 0 100 100" aria-hidden="true">${polySvg(r.shapeRef.pts, false)}</svg><figcaption>The shape</figcaption></figure>
+            <svg viewBox="0 0 100 100" aria-hidden="true">${polySvg(r.shapeRef.pts, false)}</svg>
             <span class="arrow" aria-hidden="true">→</span>
-            <figure><svg viewBox="0 0 100 100" aria-hidden="true">${polySvg(r.outline, false)}<text class="n" x="94" y="12" text-anchor="end">N↑</text></svg><figcaption>On this map</figcaption></figure>
-            <p>${r.orientation === "upright" ? "Placed upright, the same way round as the shape." : r.orientation.replace(/^./, c => c.toUpperCase()) + " from the original."} <span>${turned ? "Tap “Turn upright” to rotate the map so it reads the right way up." : "The map is north-up."}</span></p>
+            <svg viewBox="0 0 100 100" aria-hidden="true">${polySvg(r.outline, false)}</svg>
+            <p>${r.orientation === "upright" ? "Placed upright" : r.orientation.replace(/^./, c => c.toUpperCase())}${turned ? ". Turn upright to read it the right way up." : "."}</p>
           </div>
           <div class="actions">
             ${turned ? `<button type="button" data-a="upright" aria-pressed="false">Turn upright</button>` : ""}
@@ -2258,8 +2316,9 @@ out skel qt;`;
       card.querySelector("[data-a=map]").onclick = () => { state.showOnMap(r); document.querySelector(".where").scrollIntoView({ behavior: "smooth" }); };
       card.querySelector("[data-a=gpx]").onclick = () => saveBlob(new Blob([gpx(r)], { type: "application/gpx+xml" }), fileName(r, "gpx"));
       card.querySelector("[data-a=png]").onclick = async () => {
-        try { cv.toBlob(b => b ? saveBlob(b, fileName(r, "png")) : setStatus("Couldn't save that image.")); }
-        catch (e) { await redraw(true); cv.toBlob(b => saveBlob(b, fileName(r, "png"))); redraw(); }
+        const done = () => redraw();
+        try { await drawMap(cv, r, view, false, true); cv.toBlob(b => { b ? saveBlob(b, fileName(r, "png")) : setStatus("Couldn't save that image."); done(); }); }
+        catch (e) { await drawMap(cv, r, view, true, true); cv.toBlob(b => { saveBlob(b, fileName(r, "png")); done(); }); }
       };
     }
   }
@@ -2292,8 +2351,8 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     state.tiles.set(url, p); return p;
   }
   /* view: {outline, upright}. Upright rotates the whole map so the shape reads the right way up. */
-  async function drawMap(cv, r, view, noTiles = false) {
-    const S = cv.width, ctx = cv.getContext("2d"), band = 92, pad = 70;
+  async function drawMap(cv, r, view, noTiles = false, save = false) {
+    const S = cv.width, ctx = cv.getContext("2d"), band = save ? 92 : 0, pad = 70;
     const ang = view.upright ? -r.o.rot : 0, ca = Math.cos(ang), sa = Math.sin(ang);
     const W0 = r.latlng.concat(r.outlineLL).map(([a, b]) => merc(a, b));
     // fit in the rotated frame
@@ -2320,11 +2379,12 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     if (view.outline) { line(r.outlineLL, true); ctx.setLineDash([14, 10]); ctx.lineWidth = 5; ctx.strokeStyle = "rgba(26,30,28,0.75)"; ctx.stroke(); ctx.setLineDash([]); }
     ctx.lineJoin = ctx.lineCap = "round";
     line(r.latlng); ctx.lineWidth = 24; ctx.strokeStyle = "#ffffff"; ctx.stroke();
-    line(r.latlng); ctx.lineWidth = 13; ctx.strokeStyle = "#d3176f"; ctx.stroke();
+    line(r.latlng); ctx.lineWidth = 13; ctx.strokeStyle = "#8E3B46"; ctx.stroke();
     const [sx, sy] = P(r.latlng[0]);
     ctx.beginPath(); ctx.arc(sx, sy, 22, 0, Math.PI * 2); ctx.fillStyle = "#1a1e1c"; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = "#fff"; ctx.stroke();
-    ctx.fillStyle = "#fff"; ctx.font = "700 20px 'Barlow Condensed', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("S/F", sx, sy + 1);
-    // reference inset: the target shape exactly as it sits in this image
+    ctx.fillStyle = "#fff"; ctx.font = "600 19px 'Instrument Sans', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("S/F", sx, sy + 1);
+    // reference inset (saved image only): the target shape exactly as it sits in this image
+    if (save) {
     const ip = r.outlineLL.map(P), B = 230, bx = 22, by = 22;
     let a0 = Infinity, b0 = Infinity, a1 = -Infinity, b1 = -Infinity;
     for (const [x, y] of ip) { a0 = Math.min(a0, x); b0 = Math.min(b0, y); a1 = Math.max(a1, x); b1 = Math.max(b1, y); }
@@ -2332,29 +2392,32 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     ctx.fillStyle = "rgba(255,255,255,0.94)"; ctx.strokeStyle = "rgba(26,30,28,.15)"; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, B, B + 8, 14) : ctx.rect(bx, by, B, B + 8); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ip.forEach(([x, y], i) => { const X = ox + (x - a0) * k, Y = oy + (y - b0) * k; i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.closePath();
-    ctx.fillStyle = "#fbe3ee"; ctx.fill(); ctx.lineWidth = 4; ctx.lineJoin = "round"; ctx.strokeStyle = "#d3176f"; ctx.stroke();
-    ctx.fillStyle = "#1a1e1c"; ctx.font = "700 26px 'Barlow Condensed', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-    ctx.fillText("TARGET SHAPE", bx + B / 2, by + B - 2);
+    ctx.fillStyle = "rgba(142,59,70,.14)"; ctx.fill(); ctx.lineWidth = 4; ctx.lineJoin = "round"; ctx.strokeStyle = "#8E3B46"; ctx.stroke();
+    ctx.fillStyle = "#1a1e1c"; ctx.font = "600 22px 'Instrument Sans', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    ctx.fillText("Target shape", bx + B / 2, by + B - 2);
+    }
     // north arrow when the map is turned
     if (ang) {
       const nx = S - 60, ny = 70;
       ctx.save(); ctx.translate(nx, ny); ctx.rotate(ang);
       ctx.fillStyle = "rgba(255,255,255,.94)"; ctx.beginPath(); ctx.arc(0, 0, 34, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = "#1a1e1c"; ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(11, 8); ctx.lineTo(0, 2); ctx.lineTo(-11, 8); ctx.closePath(); ctx.fill();
-      ctx.font = "700 16px 'Barlow Condensed', sans-serif"; ctx.textAlign = "center"; ctx.fillText("N", 0, 26);
+      ctx.font = "600 16px 'Instrument Sans', sans-serif"; ctx.textAlign = "center"; ctx.fillText("N", 0, 26);
       ctx.restore();
     }
-    // label band
+    // label band (saved image only)
+    if (save) {
     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, S - band, S, band);
-    ctx.fillStyle = "#d3176f"; ctx.fillRect(0, S - band, 10, band);
+    ctx.fillStyle = "#8E3B46"; ctx.fillRect(0, S - band, 10, band);
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillStyle = "#1a1e1c";
-    ctx.font = "700 50px 'Barlow Condensed', 'Arial Narrow', sans-serif";
-    ctx.fillText(r.shape.toUpperCase(), 36, S - 30);
-    ctx.textAlign = "right"; ctx.fillText(`${(r.length / 1000).toFixed(1)} KM`, S - 32, S - 30);
+    ctx.font = "600 44px 'Instrument Sans', sans-serif";
+    ctx.fillText(r.shape, 36, S - 32);
+    ctx.textAlign = "right"; ctx.font = "800 44px 'Syne', sans-serif"; ctx.fillText(`${(r.length / 1000).toFixed(1)} km`, S - 32, S - 32);
     if (state.elevOn && r.elev) {
       const kmW = ctx.measureText(`${(r.length / 1000).toFixed(1)} KM`).width;
-      ctx.font = "600 30px 'Barlow Condensed', 'Arial Narrow', sans-serif"; ctx.fillStyle = "#646b66";
-      ctx.fillText(`↑ ${r.elev.gain} M`, S - 32 - kmW - 22, S - 31);
+      ctx.font = "500 28px 'Instrument Sans', sans-serif"; ctx.fillStyle = "#646b66";
+      ctx.fillText(`↑ ${r.elev.gain} m`, S - 32 - kmW - 24, S - 34);
+    }
     }
     ctx.font = "400 15px 'JetBrains Mono', monospace"; ctx.fillStyle = "rgba(26,30,28,.7)";
     ctx.fillText(noTiles ? "© OpenStreetMap contributors" : "Tiles © Esri · Data © OpenStreetMap contributors", S - 14, S - band - 12);
