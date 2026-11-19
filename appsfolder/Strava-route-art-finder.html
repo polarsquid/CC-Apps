@@ -956,7 +956,7 @@ button { border-radius: 4px; }
       </section>
 
       <section class="library">
-        <div class="section-h"><h2>Shapes it tries</h2><p>Tap shapes to switch them on or off. Only switched-on shapes are searched.</p></div>
+        <div class="section-h"><h2>Shapes</h2><p>Tap shapes to switch them on or off. Only switched-on shapes are searched.</p></div>
         <div class="libbar">
           <span id="libCount" aria-live="polite"></span>
           <div class="libbtns"><button type="button" class="ghost" id="selAll">Select all</button><button type="button" class="ghost" id="selNone">Deselect all</button></div>
@@ -1066,11 +1066,16 @@ const RouteArt = (() => {
     ["Old key", keyPts()],
     ["Flying bird", [[0, 1], [2, 0.2], [4, 0.2], [6, 1.6], [7.2, 2.8], [8, 3], [8.8, 2.8], [10, 1.6], [12, 0.2], [14, 0.2], [16, 1], [15.2, 2.5], [12.8, 2.5], [11.2, 3.6], [9.4, 5], [8, 5.8], [6.6, 5], [4.8, 3.6], [3.2, 2.5], [0.8, 2.5]]],
     ["Sword", [[2, 0], [2.7, 1.2], [2.7, 9], [4.6, 9], [4.6, 10.2], [2.5, 10.2], [2.5, 12.6], [3.0, 12.8], [3.0, 14], [1.0, 14], [1.0, 12.8], [1.5, 12.6], [1.5, 10.2], [-0.6, 10.2], [-0.6, 9], [1.3, 9], [1.3, 1.2]]],
+  ];
+  /* Words and lettering. Anything listed here is only ever rotated, never mirrored,
+     so it can't come out reading backwards. Add new word shapes to this list. */
+  const TEXT_SHAPES = [
     ["RUN (block)", RUN_CAPS],
     ["run (lowercase)", RUN_LOWER],
     ["RUN (italic)", RUN_CAPS.map(([x, y]) => [x + (5 - y) * 0.32, y])],
     ["RUN (tall)", RUN_CAPS.map(([x, y]) => [x * 0.72, y * 1.25])],
   ];
+  for (const [n, p, sym] of TEXT_SHAPES) RAW_SHAPES.push([n, p, { ...sym, text: true }]);
 
   function perimeter(pts) {
     let s = 0;
@@ -1083,7 +1088,7 @@ const RouteArt = (() => {
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, per = perimeter(raw);
     const pts = raw.map(([x, y]) => [(x - cx) / per, (y - cy) / per]);
     let maxR = 0; for (const [x, y] of pts) maxR = Math.max(maxR, Math.hypot(x, y));
-    return { name, pts, maxR, symRot: sym.symRot || TAU, mirror: !!sym.mirror };
+    return { name, pts, maxR, symRot: sym.symRot || TAU, mirror: !!(sym.mirror || sym.text) }; // text is never flipped
   }
   const SHAPES = RAW_SHAPES.map(([n, p, sym]) => normalise(n, p, sym));
 
