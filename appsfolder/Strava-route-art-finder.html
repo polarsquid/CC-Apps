@@ -1009,6 +1009,9 @@ button { border-radius: 4px; }
 #watchDlg .wacts button { flex: 1; padding: 11px 14px; border-radius: 4px; font: 600 14px var(--body); }
 #watchCopy { background: var(--ink); color: var(--paper); border: 0; }
 #watchClose { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+.card canvas { cursor: pointer; }
+.card canvas:focus-visible { outline: 3px solid var(--ink); outline-offset: -3px; }
+.dir-arrow { background: none; border: 0; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -2261,10 +2264,34 @@ out skel qt;`;
   });
   circleInfo();
 
+  /* Positions for direction arrows: one every ~2.5 km (at least 2), spaced evenly and clear of the start. */
+  function arrowSpots(xy, km) {
+    const n = Math.max(2, Math.round(km / 2.5)), cum = [0];
+    for (let i = 1; i < xy.length; i++) cum.push(cum[i - 1] + Math.hypot(xy[i][0] - xy[i - 1][0], xy[i][1] - xy[i - 1][1]));
+    const total = cum[cum.length - 1], at = d => {
+      let i = 1; while (i < cum.length - 1 && cum[i] < d) i++;
+      const t = (d - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1);
+      return [xy[i - 1][0] + (xy[i][0] - xy[i - 1][0]) * t, xy[i - 1][1] + (xy[i][1] - xy[i - 1][1]) * t];
+    };
+    const out = [], w = total * 0.012; // look a little either side so a tiny kink doesn't skew the arrow
+    for (let k = 0; k < n; k++) {
+      const d = total * (k + 0.5) / n, [x, y] = at(d), a = at(Math.max(0, d - w)), b = at(Math.min(total, d + w));
+      out.push({ x, y, ang: Math.atan2(b[1] - a[1], b[0] - a[0]) });
+    }
+    return out;
+  }
+  let mapRoute = null;
   function showOnMap(r) {
+    mapRoute = r;
     routeLayer.clearLayers();
     L.polyline(r.latlng, { color: themeColour("--map-halo"), weight: 9, opacity: 0.95 }).addTo(routeLayer);
     L.polyline(r.latlng, { color: themeColour("--accent"), weight: 5 }).addTo(routeLayer);
+    const W = 2 ** 20, xy = r.latlng.map(([a, b]) => { const [mx, my] = merc(a, b); return [mx * W, my * W]; });
+    for (const p of arrowSpots(xy, r.length / 1000)) {
+      const html = `<svg viewBox="-12 -12 24 24" width="24" height="24" style="transform:rotate(${p.ang}rad)"><path d="M-7,-8 L9,0 L-7,8 L-3,0 Z" style="fill:var(--map-ink);stroke:var(--map-halo);stroke-width:2;stroke-linejoin:round"/></svg>`;
+      L.marker([0, 0], { icon: L.divIcon({ className: "dir-arrow", html, iconSize: [24, 24], iconAnchor: [12, 12] }), interactive: false, keyboard: false })
+        .setLatLng(L.CRS.EPSG3857.pointToLatLng(L.point(p.x / W * 256, p.y / W * 256), 0)).addTo(routeLayer);
+    }
     map.fitBounds(L.latLngBounds(r.latlng).extend(circle.getBounds()), { padding: [30, 30] });
   }
   state.showOnMap = showOnMap;
@@ -2479,6 +2506,7 @@ out skel qt;`;
           </div>
           <div class="actions">
             ${turned ? `<button type="button" data-a="upright" aria-pressed="false">Turn upright</button>` : ""}
+            <button type="button" data-a="reverse" aria-pressed="false">Reverse direction</button>
             <button type="button" data-a="outline" aria-pressed="false">Show target shape</button>
             <button type="button" data-a="png">Save image</button>
             <button type="button" data-a="gpx">Download GPX</button>
@@ -2494,7 +2522,21 @@ out skel qt;`;
       card.querySelector("[data-a=outline]").onclick = ev => { view.outline = !view.outline; ev.currentTarget.setAttribute("aria-pressed", String(view.outline)); redraw(); };
       const up = card.querySelector("[data-a=upright]");
       if (up) up.onclick = ev => { view.upright = !view.upright; ev.currentTarget.setAttribute("aria-pressed", String(view.upright)); redraw(); };
-      card.querySelector("[data-a=map]").onclick = () => { state.showOnMap(r); document.querySelector(".where").scrollIntoView({ behavior: "smooth" }); };
+      const toMap = () => { state.showOnMap(r); document.querySelector(".where").scrollIntoView({ behavior: "smooth" }); };
+      card.querySelector("[data-a=map]").onclick = toMap;
+      cv.onclick = toMap; cv.tabIndex = 0; cv.title = "Show on map";
+      cv.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toMap(); } };
+      const rev = card.querySelector("[data-a=reverse]");
+      rev.setAttribute("aria-pressed", String(!!r.reversed));
+      rev.onclick = () => {
+        reverseRoute(r); rev.setAttribute("aria-pressed", String(!!r.reversed)); redraw();
+        if (r.elev && state.elevOn) {
+          const el = card.querySelector(".elev"); if (el) el.innerHTML = profileSvg(r.elev);
+          const dd = [...card.querySelectorAll(".stats div")].find(d => d.querySelector("dt").textContent === "Climb");
+          if (dd) dd.querySelector("dd").innerHTML = `${r.elev.gain}<small>m</small>`;
+        }
+        if (mapRoute === r) state.showOnMap(r);
+      };
       card.querySelector("[data-a=gpx]").onclick = () => saveBlob(new Blob([gpx(r)], { type: "application/gpx+xml" }), fileName(r, "gpx"));
       card.querySelector("[data-a=watch]").onclick = () => showWatchCode(r);
       card.querySelector("[data-a=png]").onclick = async () => {
@@ -2503,6 +2545,16 @@ out skel qt;`;
         catch (e) { await drawMap(cv, r, view, true, true); cv.toBlob(b => { saveBlob(b, fileName(r, "png")); done(); }); }
       };
     }
+  }
+  /* Run the loop the other way: same start/finish, points in reverse order. Elevation is reversed to match and climb recounted. */
+  function reverseRoute(r) {
+    r.latlng.reverse(); r.reversed = !r.reversed;
+    const e = r.elev; if (!e) return;
+    e.ele.reverse(); e.vertexEle.reverse();
+    const D = e.d[e.d.length - 1]; e.d = e.d.map(x => D - x).reverse();
+    let gain = 0, loss = 0, ref = e.ele[0];
+    for (const v of e.ele) { if (v - ref >= 2) { gain += v - ref; ref = v; } else if (ref - v >= 2) { loss += ref - v; ref = v; } }
+    e.gain = Math.round(gain); e.loss = Math.round(loss);
   }
   const fileName = (r, ext) => `${r.shape.toLowerCase().replace(/\s+/g, "-")}-${(r.length / 1000).toFixed(1)}km.${ext}`;
   function saveBlob(blob, name) {
@@ -2598,6 +2650,12 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     ctx.lineJoin = ctx.lineCap = "round";
     line(r.latlng); ctx.lineWidth = 24; ctx.strokeStyle = HALO; ctx.stroke();
     line(r.latlng); ctx.lineWidth = 13; ctx.strokeStyle = ACC; ctx.stroke();
+    for (const a of arrowSpots(r.latlng.map(P), r.length / 1000)) {
+      ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.ang);
+      ctx.beginPath(); ctx.moveTo(-22, -24); ctx.lineTo(26, 0); ctx.lineTo(-22, 24); ctx.lineTo(-10, 0); ctx.closePath();
+      ctx.lineJoin = "round"; ctx.lineWidth = 8; ctx.strokeStyle = HALO; ctx.stroke(); ctx.fillStyle = INK; ctx.fill();
+      ctx.restore();
+    }
     const [sx, sy] = P(r.latlng[0]);
     ctx.beginPath(); ctx.arc(sx, sy, 22, 0, Math.PI * 2); ctx.fillStyle = INK; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = HALO; ctx.stroke();
     ctx.fillStyle = HALO; ctx.font = "600 19px 'Instrument Sans', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("S/F", sx, sy + 1);
