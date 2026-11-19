@@ -10,7 +10,8 @@
 
 // Moss-cloaked forest spirit.
 // Outfits (set with data-spirit="..." on a card, combine with spaces):
-//   staff, dark, knight, dj (alias: synth), mummy, city, armor
+//   staff, dark, knight, dj (alias: synth), mummy, city, armor,
+//   relaxed, fisher, painter, rager, hiker, runner
 let spiritUid = 0;
 function spiritSVG(sleepy, outfit) {
   const id = 'sp' + (spiritUid++);
@@ -19,7 +20,8 @@ function spiritSVG(sleepy, outfit) {
   const dj = has('dj') || has('synth');
   const mummy = has('mummy'), city = has('city'), armor = has('armor'), relaxed = has('relaxed');
   const fisher = has('fisher'), painter = has('painter');
-  const plainBody = !mummy && !city && !armor;
+  const rager = has('rager'), hiker = has('hiker'), runner = has('runner');
+  const plainBody = !mummy && !city && !armor && !runner;
 
   const left = 'M30,38 C22,38 15.5,41 14,46.5 C12,57 8.5,67 5,78 Q9,79.4 13,78.4 Q17,79.6 21,78.4 L24,78.2 C25.5,66 27.5,55 30,48Z';
   const right = 'M30,38 C38,38 44.5,41 46,46.5 C48,57 51.5,67 55,78 Q51,79.4 47,78.4 Q43,79.6 39,78.4 L36,78.2 C34.5,66 32.5,55 30,48Z';
@@ -34,9 +36,55 @@ function spiritSVG(sleepy, outfit) {
   const eyesShut = `<path d="M16,28 Q21,31 26,28 M34,28 Q39,31 44,28" stroke="#4a4b46" stroke-width="2.2" fill="none" stroke-linecap="round"/>`;
   const eyes = sleepy ? eyesShut : eyesOpen;
 
+  /* ----- behind the spirit ----- */
+  let back = '';
+  if (rager) {
+    // the car is much wider than a spirit, so it gets a wider shadow
+    back += `<ellipse cx="30" cy="87.6" rx="29" ry="2.6" fill="rgba(0,0,0,.3)"/>`;
+  }
+  if (hiker) {
+    // a hopelessly over-packed rucksack: sleeping mat on top, bottle in the side pocket
+    back += `
+      <path d="M6,0 C6,-4.5 54,-4.5 54,0 L57.4,62 C57.4,66.4 2.6,66.4 2.6,62Z" fill="#c8662e"/>
+      <path d="M6,0 L2.6,62 C2.6,64.6 5,65.6 8,65.8 L10.6,-2.6 C8,-2 6,-1.2 6,0Z M54,0 L57.4,62 C57.4,64.6 55,65.6 52,65.8 L49.4,-2.6 C52,-2 54,-1.2 54,0Z" fill="#a9521f"/>
+      <path d="M6.6,2.2 C6.6,-3.4 53.4,-3.4 53.4,2.2 L53.6,9.4 C40,11.6 20,11.6 6.4,9.4Z" fill="#9a4a1c"/>
+      <path d="M9,6.6 C22,8.4 38,8.4 51,6.6" stroke="#e0a25a" stroke-width=".7" stroke-dasharray="1.4 1" fill="none"/>
+      <rect x="-1" y="40" width="7.6" height="18" rx="2.2" fill="#7a3a17"/>
+      <path d="M0,43 L5.6,43 M0,46.4 L5.6,46.4 M0,49.8 L5.6,49.8" stroke="#a9521f" stroke-width=".6"/>
+      <rect x="54" y="29" width="6" height="22" rx="2.6" fill="#4f9bc4"/>
+      <rect x="54.9" y="25.8" width="4.2" height="3.8" rx=".8" fill="#2a2f33"/>
+      <path d="M55.4,31 L55.4,40" stroke="#a6d6ee" stroke-width=".9" stroke-linecap="round"/>
+      <rect x="53.4" y="42" width="7.6" height="16" rx="2.2" fill="#7a3a17"/>
+      <rect x="4.6" y="-12.6" width="50.8" height="10.4" rx="5.2" fill="#3d6b8c"/>
+      <path d="M8,-9.6 C20,-10.6 40,-10.6 52,-9.6" stroke="#5a88a8" stroke-width="1" fill="none"/>
+      <ellipse cx="52.8" cy="-7.4" rx="2.6" ry="5.2" fill="#2f5672"/>
+      <path d="M52.8,-10 C54.2,-9 54.2,-6 52.8,-5.4 C51.8,-6 51.9,-8 52.8,-8.4" stroke="#5a88a8" stroke-width=".7" fill="none"/>
+      <path d="M15,-12.8 L15,-1.8 M45,-12.8 L45,-1.8" stroke="#2a2f33" stroke-width="1.8"/>`;
+  }
+
   /* ----- legs ----- */
   let legs;
-  if (mummy) {
+  if (rager) {
+    legs = '';   // tucked away inside the car
+  } else if (hiker) {
+    // wool socks and chunky leather boots
+    legs = `<path d="M17,75 L27,75 L26.6,81.4 L17.4,81.4Z" fill="#e6dcc6"/><path d="M33,75 L43,75 L42.6,81.4 L33.4,81.4Z" fill="#e6dcc6"/>
+      <path d="M19,79 L19,81.2 M21,79 L21,81.2 M23,79 L23,81.2 M25,79 L25,81.2 M35,79 L35,81.2 M37,79 L37,81.2 M39,79 L39,81.2 M41,79 L41,81.2" stroke="#c9bda2" stroke-width=".6"/>
+      <path d="M17.4,81 L26.6,81 L26.8,83.8 C28.8,84 29.8,85 29.6,86.4 L16.4,86.4 C16.2,84.6 16.7,82.4 17.4,81Z" fill="#7a4a26"/>
+      <path d="M42.6,81 L33.4,81 L33.2,83.8 C31.2,84 30.2,85 30.4,86.4 L43.6,86.4 C43.8,84.6 43.3,82.4 42.6,81Z" fill="#7a4a26"/>
+      <path d="M16.2,86 L29.8,86 L29.8,87.8 L16.2,87.8Z M30.2,86 L43.8,86 L43.8,87.8 L30.2,87.8Z" fill="#2a1c12"/>
+      <path d="M19.6,82.4 L24.4,83.2 M19.6,84.2 L24.4,85 M40.4,82.4 L35.6,83.2 M40.4,84.2 L35.6,85" stroke="#e8a33a" stroke-width=".8" stroke-linecap="round"/>`;
+  } else if (runner) {
+    // legs pump up and down under the shorts; bright running shoes
+    const leg = (x, cls, flip) => `<g class="${cls}">
+        <rect x="${x - 3.6}" y="64" width="7.2" height="17" rx="3.4" fill="#c9ccc5"/>
+        <path d="M${x - 3.4},78.6 L${x + 3.4},78.6" stroke="#f4f1ea" stroke-width="1.8"/>
+        <path d="M${x - 4.6},79.6 L${x + 4.6},79.6 C${x + 5.8 * flip},79.8 ${x + 6.6 * flip},83 ${x + 5.6 * flip},84.4 L${x - 5.6 * flip},84.4 C${x - 6.2 * flip},83 ${x - 5.8 * flip},80.4 ${x - 4.6},79.6Z" fill="#f2611d"/>
+        <path d="M${x - 5.8},84.2 L${x + 5.8},84.2 L${x + 5.6},86.6 L${x - 5.6},86.6Z" fill="#f4f1ea"/>
+        <path d="M${x - 2.4},81 L${x + 2.4},81.6" stroke="#ffffff" stroke-width=".7" stroke-linecap="round"/>
+      </g>`;
+    legs = leg(23, 'leg-l', 1) + leg(37, 'leg-r', -1);
+  } else if (mummy) {
     legs = `<path d="M17,75 L27,75 L25.2,86 C25,87.4 19,87.4 18.8,86Z" fill="#e8dfc8"/><path d="M33,75 L43,75 L41.2,86 C41,87.4 35,87.4 34.8,86Z" fill="#e8dfc8"/>
       <path d="M17.4,77.5 L26.6,79 M17.8,80.5 L26.2,82 M18.4,83.5 L25.6,85 M33.4,79 L42.6,77.5 M33.8,82 L42.2,80.5 M34.4,85 L41.6,83.5" stroke="#c4b795" stroke-width=".8"/>`;
   } else if (city) {
@@ -164,6 +212,28 @@ function spiritSVG(sleepy, outfit) {
       <ellipse cx="12.5" cy="64.6" rx="2.7" ry="3" fill="#c9ccc5"/>`;
   }
 
+  if (runner) {
+    // racing singlet with a race bib, short shorts, arms pumping
+    const arm = (sx, ex, hx, cls) => `<g class="${cls}">
+        <path d="M${sx},43.4 L${ex},51.6 L${hx},55.2" stroke="#c9ccc5" stroke-width="4.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <ellipse cx="${hx}" cy="55.4" rx="2.6" ry="2.7" fill="#c9ccc5"/>
+      </g>`;
+    body += `
+      <rect x="19" y="39" width="22" height="26" rx="9" fill="#c9ccc5"/>
+      <path d="M21.6,39.4 C24,42.6 36,42.6 38.4,39.4 L41,45.6 C40.4,51 40.8,57 41.4,64 L18.6,64 C19.2,57 19.6,51 19,45.6Z" fill="#f2611d"/>
+      <path d="M21.6,39.4 C24,42.6 36,42.6 38.4,39.4 M21.6,39.4 L19,45.6 M38.4,39.4 L41,45.6" stroke="#c8410f" stroke-width="1" fill="none"/>
+      <rect x="23.2" y="47.4" width="13.6" height="10.2" rx="1" fill="#f7f5ef" stroke="#d8d2c4" stroke-width=".5"/>
+      <rect x="23.2" y="47.4" width="13.6" height="2" fill="#2b3440"/>
+      <text x="30" y="56.4" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="6.6" fill="#2a2f33">42</text>
+      <circle cx="24.2" cy="50.4" r=".5" fill="#9aa4ad"/><circle cx="35.8" cy="50.4" r=".5" fill="#9aa4ad"/>
+      <circle cx="24.2" cy="56.6" r=".5" fill="#9aa4ad"/><circle cx="35.8" cy="56.6" r=".5" fill="#9aa4ad"/>
+      <path d="M18.4,62.4 L41.6,62.4 L42.4,71 L31.4,71 L30,67.2 L28.6,71 L17.6,71Z" fill="#2b3440"/>
+      <path d="M18.9,63 L18.2,70.6 M41.1,63 L41.8,70.6" stroke="#f2611d" stroke-width="1"/>
+      ${arm(18.4, 14.6, 19.8, 'arm-l')}
+      ${arm(41.6, 45.4, 40.2, 'arm-r')}
+      <g class="arm-l"><rect x="15.6" y="52.6" width="3.8" height="3" rx=".7" fill="#23262a" transform="rotate(35 17.5 54.1)"/><rect x="16.4" y="53.3" width="2.2" height="1.6" rx=".3" fill="#f2611d" transform="rotate(35 17.5 54.1)"/></g>`;
+  }
+
   if (armor) {
     // polished plate: pauldrons, long breastplate, vambraces
     body += `
@@ -234,6 +304,25 @@ function spiritSVG(sleepy, outfit) {
         <path d="M14.6,27.6 Q21,28.6 27.4,27.6 M32.6,27.6 Q39,28.6 45.4,27.6" stroke="#4a4b46" stroke-width="1.5" fill="none" stroke-linecap="round"/>
         <path d="M27.4,34.4 Q30,36.4 32.6,34.4" stroke="#7d807a" stroke-width="1.1" fill="none" stroke-linecap="round"/>
         <ellipse cx="15.5" cy="34.5" rx="3" ry="1.6" fill="#e9a08a" opacity=".35"/><ellipse cx="44.5" cy="34.5" rx="3" ry="1.6" fill="#e9a08a" opacity=".35"/>`;
+    }
+    if (rager && !sleepy) {
+      // furious: heavy lids, knitted brows, gritted teeth, flushed cheeks, a throbbing vein
+      face += `<path d="M13.6,18 L28,18 L28,24.4 L13.6,20.2Z M46.4,18 L32,18 L32,24.4 L46.4,20.2Z" fill="#cfd2cc"/>
+        <path d="M14.2,19.8 L27.4,24.2 M45.8,19.8 L32.6,24.2" stroke="#4a4b46" stroke-width="2.4" stroke-linecap="round"/>
+        <ellipse cx="14.6" cy="34.6" rx="3.4" ry="1.8" fill="#e0564a" opacity=".5"/><ellipse cx="45.4" cy="34.6" rx="3.4" ry="1.8" fill="#e0564a" opacity=".5"/>
+        <rect x="25" y="33.8" width="10" height="4.4" rx="1.6" fill="#f6f3ea" stroke="#4a4b46" stroke-width=".9"/>
+        <path d="M27.5,34 L27.5,38 M30,34 L30,38 M32.5,34 L32.5,38 M25.3,36 L34.7,36" stroke="#9a9c96" stroke-width=".5"/>
+        <g class="vein" fill="none" stroke="#d9433b" stroke-width="1.3" stroke-linecap="round">
+          <path d="M40.6,17.4 Q42.6,17.8 42.8,15.6 M45.2,15.6 Q45.4,17.8 47.4,17.4 M40.6,20.6 Q42.6,20.2 42.8,22.4 M45.2,22.4 Q45.4,20.2 47.4,20.6"/>
+        </g>`;
+    }
+    if (hiker && !sleepy) {
+      face += `<path d="M27.4,34.4 Q30,36.6 32.6,34.4" stroke="#7d807a" stroke-width="1.1" fill="none" stroke-linecap="round"/>`;
+    }
+    if (runner && !sleepy) {
+      // puffing: little open mouth, rosy cheeks
+      face += `<ellipse cx="30" cy="35.4" rx="1.7" ry="1.4" fill="#4a4b46"/>
+        <ellipse cx="15.5" cy="34.5" rx="3" ry="1.6" fill="#e9806a" opacity=".45"/><ellipse cx="44.5" cy="34.5" rx="3" ry="1.6" fill="#e9806a" opacity=".45"/>`;
     }
     if (mummy) {
       // bandages over the head, leaving a gap for the eyes
@@ -370,6 +459,69 @@ function spiritSVG(sleepy, outfit) {
         <ellipse cx="49.6" cy="55.6" rx="3" ry="3.2" fill="#c9ccc5"/>
       </g>`;
   }
+  if (rager) {
+    // stuck in a little convertible: one hand on the wheel, one fist shaking, steam coming off the top
+    extras += `
+      <g class="puff" fill="#eef1ec"><circle cx="19" cy="8.4" r="2.4"/><circle cx="21.6" cy="7.2" r="2.8"/><circle cx="20.2" cy="5" r="2.2"/></g>
+      <g class="puff puff-2" fill="#eef1ec"><circle cx="41" cy="8.4" r="2.4"/><circle cx="38.4" cy="7.2" r="2.8"/><circle cx="39.8" cy="5" r="2.2"/></g>
+      <ellipse cx="30" cy="48.6" rx="9" ry="3" fill="none" stroke="#1d2024" stroke-width="2"/>
+      <path d="M30,48.6 L30,51.6" stroke="#1d2024" stroke-width="1.6"/>
+      <ellipse cx="38.2" cy="47.4" rx="2.7" ry="2.5" fill="#c9ccc5"/>
+      <path d="M8,52.4 L12.2,40 L47.8,40 L52,52.4Z" fill="rgba(190,225,240,.28)" stroke="#2a2f35" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M15,50.6 L19,41.6 M18.6,50.6 L21.4,44.8" stroke="#ffffff" stroke-width=".9" opacity=".45" stroke-linecap="round"/>
+      <path d="M52,48.4 L56.6,47.6" stroke="#2a2f35" stroke-width="1.2"/>
+      <rect x="55" y="44.6" width="5" height="4" rx="1.6" fill="#9e2f22" stroke="#2a2f35" stroke-width=".6"/>
+      <rect x="3" y="75" width="9" height="12.6" rx="3" fill="#1d2024"/><rect x="48" y="75" width="9" height="12.6" rx="3" fill="#1d2024"/>
+      <path d="M2,57 C2,54 5,52.2 9,52.2 L51,52.2 C55,52.2 58,54 58,57 L58,80.6 C58,82.4 56.6,83.6 54.6,83.6 L5.4,83.6 C3.4,83.6 2,82.4 2,80.6Z" fill="#c8402f" stroke="#8a2a21" stroke-width=".8"/>
+      <path d="M8,54.6 C20,53.6 40,53.6 52,54.6" stroke="#e86a58" stroke-width="1.3" fill="none" stroke-linecap="round" opacity=".8"/>
+      <circle cx="10" cy="62.4" r="4.2" fill="#fff3c4" stroke="#8a2a21" stroke-width=".8"/><circle cx="10" cy="62.4" r="2.2" fill="#fffbe9"/>
+      <circle cx="50" cy="62.4" r="4.2" fill="#fff3c4" stroke="#8a2a21" stroke-width=".8"/><circle cx="50" cy="62.4" r="2.2" fill="#fffbe9"/>
+      <path d="M5.2,57.6 L14.8,57.6 L14.8,61.2 L5.2,58.8Z M54.8,57.6 L45.2,57.6 L45.2,61.2 L54.8,58.8Z" fill="#c8402f"/>
+      <path d="M5.4,58.8 L14.8,61.2 M54.6,58.8 L45.2,61.2" stroke="#8a2a21" stroke-width="1.1" stroke-linecap="round"/>
+      <rect x="20" y="59.6" width="20" height="8.4" rx="2.4" fill="#2a1d1b"/>
+      <path d="M21.6,62 L38.4,62 M21.6,64 L38.4,64 M21.6,66 L38.4,66" stroke="#5a4440" stroke-width=".8"/>
+      <rect x="1" y="77.2" width="58" height="3.6" rx="1.8" fill="#b8bfc6" stroke="#6c757e" stroke-width=".5"/>
+      <rect x="20.6" y="70" width="18.8" height="6.8" rx="1.2" fill="#f4d03f" stroke="#2a2f33" stroke-width=".6"/>
+      <text x="30" y="75.4" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="5" letter-spacing=".4" fill="#2a2f33">GRR</text>
+      <g class="fist">
+        <path d="M16,47.4 C11,46.4 6.6,42.4 4.8,36.4" stroke="#4f7a34" stroke-width="4.6" fill="none" stroke-linecap="round"/>
+        <circle cx="4.4" cy="33.4" r="3.4" fill="#c9ccc5"/>
+        <path d="M2.2,32 Q4.4,30.8 6.6,32 M2.4,34 L6.4,34" stroke="#a9ada6" stroke-width=".6" fill="none"/>
+      </g>`;
+  }
+  if (hiker) {
+    // pack straps and hip belt, a woolly beanie, a trekking pole and a tin mug swinging off the pack
+    extras += `
+      <path d="M21.4,40.2 C19.4,46 18.6,52 19,61 M38.6,40.2 C40.6,46 41.4,52 41,61" stroke="#8a3f17" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <path d="M19.4,50 L40.6,50" stroke="#2a2f33" stroke-width="1.3"/><rect x="28.2" y="48.7" width="3.6" height="2.6" rx=".6" fill="#2a2f33"/>
+      <path d="M11.2,64.4 C20,66.2 40,66.2 48.8,64.4" stroke="#8a3f17" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <rect x="27.6" y="63.8" width="4.8" height="3.4" rx=".8" fill="#2a2f33"/><rect x="28.6" y="64.6" width="2.8" height="1.8" rx=".4" fill="#9aa4ad"/>
+      <path d="M17,16.4 C16.6,5.4 43.4,5.4 43,16.4Z" fill="#b8433a"/>
+      <path d="M16.6,13.4 C24,12 36,12 43.4,13.4 L43.6,17.6 C36,16.2 24,16.2 16.4,17.6Z" fill="#8e2f2a"/>
+      <path d="M19,13 L19,17.2 M22,12.6 L22,16.8 M25,12.4 L25,16.6 M28,12.3 L28,16.5 M31,12.3 L31,16.5 M34,12.4 L34,16.6 M37,12.6 L37,16.8 M40,13 L40,17.2" stroke="#6b2220" stroke-width=".6"/>
+      <circle cx="30" cy="5.4" r="3.4" fill="#efe7d6"/><path d="M28.2,4.2 L29.4,5.4 M31,3.6 L31.6,5.2 M29.8,6.6 L31.4,7" stroke="#cfc5ad" stroke-width=".6" stroke-linecap="round"/>
+      <path d="M51.4,50 L55.2,87.4" stroke="#9aa4ad" stroke-width="1.4" stroke-linecap="round"/>
+      <ellipse cx="54.7" cy="83.2" rx="2.2" ry=".8" fill="#2a2f33"/>
+      <path d="M50.8,46.4 L51.8,55" stroke="#2a2f33" stroke-width="2.8" stroke-linecap="round"/>
+      <ellipse cx="51.2" cy="56.4" rx="3" ry="3.2" fill="#c9ccc5"/>
+      <g class="swing">
+        <ellipse cx="2" cy="44.4" rx="1.3" ry="2.2" fill="none" stroke="#b8bfc6" stroke-width=".8"/>
+        <path d="M-1.6,47.2 L5.6,47.2 L5.2,53.4 C5.2,54.4 -1.2,54.4 -1.2,53.4Z" fill="#e9eef2" stroke="#5b646d" stroke-width=".6"/>
+        <path d="M-1.6,48.2 L5.6,48.2" stroke="#3f7fbf" stroke-width=".9"/>
+        <path d="M-1.5,48.8 C-3.8,49 -3.8,52.2 -1.3,52.2" stroke="#5b646d" stroke-width=".8" fill="none"/>
+      </g>`;
+  }
+  if (runner) {
+    // sweatband with flapping ends, a drop of sweat, and a route-art heart tracing itself overhead
+    extras += `
+      <g clip-path="url(#${id}h)"><path d="M6,16.6 Q30,12.6 54,16.6 L54,20.8 Q30,16.8 6,20.8Z" fill="#f2611d"/><path d="M6,18.7 Q30,14.7 54,18.7" stroke="#ffffff" stroke-width=".7" fill="none" opacity=".7"/></g>
+      <path class="ribbon-tail" d="M51.2,18.6 C55,17.4 57.4,19.2 60.4,18.4" stroke="#f2611d" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path class="ribbon-tail ribbon-2" d="M51.2,20 C54.6,21.4 56.4,23.8 59.4,24.4" stroke="#d9520f" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path class="sweat" d="M7,14.6 C5.6,17 5.6,18.8 7,18.8 C8.4,18.8 8.4,17 7,14.6Z" fill="#bfe3f2"/>
+      <path class="route" pathLength="100" d="M30,-14.8 C25,-17.8 20.8,-21.6 22.6,-25.2 C24,-28 28,-28.2 30,-24.8 C32,-28.2 36,-28 37.4,-25.2 C39.2,-21.6 35,-17.8 30,-14.8Z" stroke="rgba(242,97,29,.35)" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <path class="route" pathLength="100" d="M30,-14.8 C25,-17.8 20.8,-21.6 22.6,-25.2 C24,-28 28,-28.2 30,-24.8 C32,-28.2 36,-28 37.4,-25.2 C39.2,-21.6 35,-17.8 30,-14.8Z" stroke="#ff8a4c" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="30" cy="-14.8" r="1.4" fill="#ffffff"/><circle cx="30" cy="-14.8" r=".8" fill="#f2611d"/>`;
+  }
   if (staff) {
     extras += `
       <path d="M52.5,86 C52,66 53.5,40 52.4,6" stroke="#6b4a2e" stroke-width="3.2" fill="none" stroke-linecap="round"/>
@@ -380,9 +532,10 @@ function spiritSVG(sleepy, outfit) {
       <ellipse cx="52.6" cy="56" rx="3.3" ry="3.5" fill="#c9ccc5"/>`;
   }
 
-  return `<svg class="sp${relaxed ? ' relaxed' : ''}" viewBox="0 -14 60 104" aria-hidden="true">
+  return `<svg class="sp${relaxed ? ' relaxed' : ''}${runner ? ' runner' : ''}" viewBox="0 -14 60 104" aria-hidden="true">
     <defs>${headClip}${armor ? metal : ''}</defs>
-    <ellipse cx="30" cy="88" rx="16" ry="2.4" fill="rgba(0,0,0,.3)"/>
+    ${rager ? '' : '<ellipse cx="30" cy="88" rx="16" ry="2.4" fill="rgba(0,0,0,.3)"/>'}
+    ${back}
     ${legs}
     ${body}
     <g class="ears">${antlers}${ears}</g>
