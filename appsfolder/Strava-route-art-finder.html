@@ -1012,6 +1012,37 @@ button { border-radius: 4px; }
 .card canvas { cursor: pointer; }
 .card canvas:focus-visible { outline: 3px solid var(--ink); outline-offset: -3px; }
 .dir-arrow { background: none; border: 0; pointer-events: none; }
+.draw-tile { border: 1.5px dashed var(--ink) !important; }
+.draw-tile svg path { fill: none; stroke: var(--ink); stroke-width: 6; stroke-linecap: round; }
+.shape-wrap { position: relative; display: flex; }
+.shape-wrap .shape { flex: 1; }
+.shape small { font: 500 10px var(--mono); color: var(--muted); }
+.shape-del { position: absolute; top: 2px; right: 2px; min-width: 22px; height: 22px; padding: 0 5px; border: 0; border-radius: 11px; background: var(--paper); color: var(--muted); font: 600 14px/22px var(--body); }
+.shape-del:hover { color: var(--ink); }
+.shape-del.armed { background: var(--warn); color: #fff; font-size: 11px; }
+#drawDlg { width: min(460px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 18px; border: 0; border-radius: 6px; background: var(--panel); color: var(--ink); box-shadow: 0 12px 40px rgba(0,0,0,.25); }
+#drawDlg::backdrop { background: rgba(10, 12, 20, .45); }
+#drawDlg h3 { margin: 0; font: 600 20px/1.2 var(--body); }
+#drawDlg .dhelp { margin: 6px 0 12px; font-size: 13px; color: var(--muted); }
+#drawPad { display: block; width: 100%; aspect-ratio: 1; border: 1.5px solid var(--ink); border-radius: 4px; touch-action: none; cursor: crosshair; }
+#drawDlg .dmeta { margin: 8px 0 12px; font: 500 12px var(--mono); color: var(--muted); }
+#drawDlg .dfield { display: block; margin: 0 0 12px; padding: 0; border: 0; }
+#drawDlg .dfield .lbl { display: block; margin-bottom: 6px; }
+#drawDlg .dradio { display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; padding: 4px 0; font-size: 14px; }
+#drawDlg .dradio small { flex-basis: 100%; padding-left: 21px; color: var(--muted); font-size: 12px; }
+#drawDlg .dacts { display: flex; gap: 8px; }
+#drawDlg .dacts button { flex: 1; padding: 11px 10px; border-radius: 4px; font: 600 14px var(--body); background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+#drawAdd { background: var(--ink) !important; color: var(--paper) !important; }
+#drawAdd:disabled { opacity: .35; }
+.editbar { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 12px; background: var(--panel); color: var(--ink); border-radius: 4px; box-shadow: 0 1px 6px rgba(0,0,0,.2); font: 500 12px var(--body); }
+.editbar[hidden] { display: none !important; }
+.editbar .eb-km { font: 600 12px var(--mono); }
+.editbar button { padding: 5px 10px; border: 1.5px solid var(--ink); border-radius: 4px; background: transparent; color: var(--ink); font: 600 12px var(--body); }
+.editbar button:disabled { opacity: .35; }
+.route-hover, .route-hover .leaflet-interactive, .route-hover .leaflet-grab { cursor: move !important; }
+.route-dragging, .route-dragging * { cursor: grabbing !important; }
+.card h3 em.ed { color: var(--muted); }
+@media (max-width: 640px) { .editbar .eb-hint { display: none; } }
 </style>
 </head>
 <body>
@@ -1789,7 +1820,37 @@ const RouteArt = (() => {
     const r = shapes.map(s => s.maxR).sort((a, b) => a - b);
     return r[Math.min(r.length - 1, Math.floor(share * (r.length - 1)))] * targetM / 1.15 * 1.08;
   }
-  return { SHAPES, radiusFor, makeProjection, buildGraph, compact, search, nearestNode, placeShape, describeOrientation, similarity };
+  /* ---------- editing helpers (drawn shapes, dragged routes) ---------- */
+  // add a user-drawn shape; pts in any units, y down. Replaces a shape with the same name.
+  function addShape(name, raw, sym = {}) {
+    const sh = normalise(name, raw, sym); sh.custom = true;
+    const i = SHAPES.findIndex(s => s.name === name);
+    if (i >= 0) SHAPES[i] = sh; else SHAPES.push(sh);
+    return sh;
+  }
+  function removeShape(name) { const i = SHAPES.findIndex(s => s.name === name); if (i >= 0) SHAPES.splice(i, 1); }
+  // shortest runnable path between two street nodes (no shape-following bias)
+  let legRouter = null, legUsed = null;
+  function routeLeg(g, a, b) {
+    if (!legRouter || legRouter.g !== g) { legRouter = makeRouter(g); legRouter.g = g; legUsed = new Uint8Array(g.nEdges); }
+    return legRouter(a, b, g.X[a], g.Y[a], g.X[b], g.Y[b], legUsed, 1e9);
+  }
+  // length, overlap and fit for an edited path, scored the same way as search() scores its routes
+  function scorePath(g, path, outline, P) {
+    let length = 0, reused = 0; const count = new Map();
+    for (let k = 1; k < path.length; k++) {
+      const e = edgeBetween(g, path[k - 1], path[k]);
+      const L = e >= 0 ? g.len[e] : Math.hypot(g.X[path[k]] - g.X[path[k - 1]], g.Y[path[k]] - g.Y[path[k - 1]]);
+      length += L;
+      if (e >= 0) { const id = g.eid[e], c = (count.get(id) || 0) + 1; count.set(id, c); if (c > 1) reused += L; }
+    }
+    const reuse = length ? reused / length : 0;
+    const sim = similarity(path.map(i => [g.X[i], g.Y[i]]), outline, P);
+    const score = 0.25 * sim.iou + 0.25 * sim.devScore + 0.2 * sim.missScore + 0.3 * sim.vertexScore - 0.8 * reuse;
+    const looks = score >= 0.72 && sim.iou >= 0.7 && sim.devScore >= 0.7 && sim.vertexScore >= 0.7 && sim.worstVertex <= 0.035 && reuse < 0.08;
+    return { length, reuse, sim, score, looks };
+  }
+  return { SHAPES, radiusFor, makeProjection, buildGraph, compact, search, nearestNode, placeShape, describeOrientation, similarity, addShape, removeShape, routeLeg, scorePath };
 })();
 if (typeof module !== "undefined") module.exports = RouteArt;
 /*CORE-END*/
@@ -1978,6 +2039,12 @@ if (typeof module !== "undefined") module.exports = StreetTiles;
 <script>
 (() => {
   const $ = id => document.getElementById(id);
+  /* drawn shapes saved in this browser: [{ name, pts: [[x, y], ...] (0–600, y down), noFlip }] */
+  const CUSTOM_KEY = "raf-custom";
+  let customShapes = [];
+  try { const v = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "[]"); if (Array.isArray(v)) customShapes = v.filter(c => c && c.name && Array.isArray(c.pts) && c.pts.length >= 3); } catch (e) {}
+  for (const c of customShapes) RouteArt.addShape(c.name, c.pts, c.noFlip ? { noFlip: true } : {});
+  const saveCustom = () => { try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(customShapes)); } catch (e) {} };
   const state = { enabled: new Set(RouteArt.SHAPES.map(s => s.name)), cache: null, results: [], page: 0, tiles: new Map() };
 
   /* ---------- shape library ---------- */
@@ -1998,13 +2065,128 @@ if (typeof module !== "undefined") module.exports = StreetTiles;
     try { localStorage.setItem("raf-shapes", JSON.stringify([...state.enabled])); } catch (e) {}
     if (state.mapReady) circleInfo();
   }
-  for (const sh of RouteArt.SHAPES) {
+  const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  function addShapeTile(sh) {
     const b = document.createElement("button");
     b.type = "button"; b.className = "shape";
-    b.innerHTML = shapeSvg(sh) + `<span>${sh.name}</span>`;
+    b.innerHTML = shapeSvg(sh) + `<span>${esc(sh.name)}</span>`;
     b.onclick = () => { state.enabled.has(sh.name) ? state.enabled.delete(sh.name) : state.enabled.add(sh.name); syncLib(); };
-    shapeBtns.set(sh.name, b); lib.appendChild(b);
+    shapeBtns.set(sh.name, b);
+    if (!sh.custom) { lib.appendChild(b); return; }
+    // drawn shapes: wrapped so they can carry a delete button (tap twice to delete)
+    const w = document.createElement("div"); w.className = "shape-wrap";
+    const del = document.createElement("button"); del.type = "button"; del.className = "shape-del"; del.textContent = "×";
+    del.setAttribute("aria-label", `Delete ${sh.name}`); del.title = "Delete this shape";
+    del.onclick = () => {
+      if (!del.classList.contains("armed")) { del.classList.add("armed"); del.textContent = "Delete?"; clearTimeout(del._t); del._t = setTimeout(() => { del.classList.remove("armed"); del.textContent = "×"; }, 3000); return; }
+      customShapes = customShapes.filter(c => c.name !== sh.name); saveCustom();
+      RouteArt.removeShape(sh.name); state.enabled.delete(sh.name); shapeBtns.delete(sh.name); w.remove(); syncLib();
+    };
+    b.querySelector("span").insertAdjacentHTML("afterend", `<small>Yours${sh.mirror ? " · rotate only" : ""}</small>`);
+    w.append(b, del); lib.appendChild(w);
   }
+  const drawTile = document.createElement("button");
+  drawTile.type = "button"; drawTile.className = "shape draw-tile"; drawTile.id = "drawOpen";
+  drawTile.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 26v48M26 50h48"/></svg><span>Draw your own</span>`;
+  lib.appendChild(drawTile);
+  for (const sh of RouteArt.SHAPES) addShapeTile(sh);
+
+  /* ---------- draw your own shape ---------- */
+  const MAX_PTS = 24, PAD = 600;
+  const drawDlg = document.createElement("dialog"); drawDlg.id = "drawDlg"; drawDlg.setAttribute("aria-labelledby", "drawTitle");
+  drawDlg.innerHTML = `<h3 id="drawTitle">Draw your own shape</h3>
+    <p class="dhelp">Draw one outline in a single stroke. It closes itself and is simplified to ${MAX_PTS} points or fewer. Bold, simple shapes match streets best.</p>
+    <canvas id="drawPad" width="${PAD}" height="${PAD}" aria-label="Drawing area"></canvas>
+    <p class="dmeta" id="drawMeta" aria-live="polite">Draw an outline</p>
+    <label class="dfield"><span class="lbl">Name</span><input type="text" id="drawName" maxlength="24" autocomplete="off"></label>
+    <fieldset class="dfield"><legend class="lbl">On the map</legend>
+      <label class="dradio"><input type="radio" name="drawFlip" value="flip" checked> Rotate and flip <small>(more chances to fit)</small></label>
+      <label class="dradio"><input type="radio" name="drawFlip" value="rotate"> Rotate only <small>(letters, maps, anything that mustn't be mirrored)</small></label>
+    </fieldset>
+    <div class="dacts"><button type="button" id="drawClear">Clear</button><button type="button" id="drawCancel">Cancel</button><button type="button" id="drawAdd" disabled>Add shape</button></div>`;
+  document.body.appendChild(drawDlg);
+  const pad = $("drawPad"), pctx = pad.getContext("2d");
+  let stroke = [], drawn = null, drawing = false;
+  // Douglas–Peucker on a closed outline, tightening until it fits MAX_PTS
+  function dp(pts, tol) {
+    const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
+    const st = [[0, pts.length - 1]];
+    while (st.length) {
+      const [a, b] = st.pop(); let wi = -1, wd = tol;
+      for (let i = a + 1; i < b; i++) { const d = segPx(pts[i], pts[a], pts[b]); if (d > wd) { wd = d; wi = i; } }
+      if (wi >= 0) { keep[wi] = 1; st.push([a, wi], [wi, b]); }
+    }
+    return pts.filter((_, i) => keep[i]);
+  }
+  function segPx(p, a, b) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy;
+    let t = L ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L : 0; t = Math.max(0, Math.min(1, t));
+    return Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]);
+  }
+  function simplifyStroke(raw) {
+    if (raw.length < 8) return null;
+    // start the loop at the point furthest from the centre so the closing join isn't a corner DP has to guess
+    const cx = raw.reduce((s, p) => s + p[0], 0) / raw.length, cy = raw.reduce((s, p) => s + p[1], 0) / raw.length;
+    let fi = 0, fd = -1; raw.forEach((p, i) => { const d = Math.hypot(p[0] - cx, p[1] - cy); if (d > fd) { fd = d; fi = i; } });
+    const loop = raw.slice(fi).concat(raw.slice(0, fi)); loop.push(loop[0]);
+    let tol = 10, out = dp(loop, tol); // ~1.7% of the pad: ignores hand wobble, keeps real corners
+    while (out.length - 1 > MAX_PTS) { tol *= 1.25; out = dp(loop, tol); }
+    out.pop();
+    return out.length >= 3 ? out.map(([x, y]) => [Math.round(x), Math.round(y)]) : null;
+  }
+  const polyArea = pts => Math.abs(pts.reduce((s, p, i) => { const q = pts[(i + 1) % pts.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2;
+  function paintPad() {
+    const INK = themeColour("--ink"), LINE = themeColour("--line"), PAPER = themeColour("--paper"), ACC = themeColour("--accent");
+    pctx.fillStyle = PAPER; pctx.fillRect(0, 0, PAD, PAD);
+    pctx.strokeStyle = LINE; pctx.lineWidth = 1;
+    for (let i = 1; i < 6; i++) { const v = i * PAD / 6 + 0.5; pctx.beginPath(); pctx.moveTo(v, 0); pctx.lineTo(v, PAD); pctx.moveTo(0, v); pctx.lineTo(PAD, v); pctx.stroke(); }
+    pctx.lineJoin = pctx.lineCap = "round";
+    if (drawn) {
+      pctx.beginPath(); drawn.forEach(([x, y], i) => i ? pctx.lineTo(x, y) : pctx.moveTo(x, y)); pctx.closePath();
+      pctx.globalAlpha = 0.25; pctx.fillStyle = ACC; pctx.fill(); pctx.globalAlpha = 1;
+      pctx.lineWidth = 5; pctx.strokeStyle = INK; pctx.stroke();
+      pctx.fillStyle = PAPER; pctx.strokeStyle = INK; pctx.lineWidth = 3;
+      for (const [x, y] of drawn) { pctx.beginPath(); pctx.arc(x, y, 7, 0, Math.PI * 2); pctx.fill(); pctx.stroke(); }
+    } else if (stroke.length > 1) {
+      pctx.beginPath(); stroke.forEach(([x, y], i) => i ? pctx.lineTo(x, y) : pctx.moveTo(x, y));
+      pctx.lineWidth = 5; pctx.strokeStyle = INK; pctx.stroke();
+    }
+  }
+  const padPt = e => { const b = pad.getBoundingClientRect(); return [Math.max(0, Math.min(PAD, (e.clientX - b.left) * PAD / b.width)), Math.max(0, Math.min(PAD, (e.clientY - b.top) * PAD / b.height))]; };
+  pad.addEventListener("pointerdown", e => { e.preventDefault(); pad.setPointerCapture(e.pointerId); drawing = true; drawn = null; stroke = [padPt(e)]; $("drawAdd").disabled = true; $("drawMeta").textContent = "Drawing…"; paintPad(); });
+  pad.addEventListener("pointermove", e => {
+    if (!drawing) return;
+    for (const ev of (e.getCoalescedEvents ? e.getCoalescedEvents() : [e])) { const p = padPt(ev), l = stroke[stroke.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) >= 3) stroke.push(p); }
+    paintPad();
+  });
+  const endStroke = () => {
+    if (!drawing) return; drawing = false;
+    const pts = simplifyStroke(stroke);
+    let msg;
+    if (!pts) msg = "Too short. Draw a bigger outline.";
+    else if (polyArea(pts) < PAD * PAD * 0.03) msg = "Too thin or small to run. Draw a bigger, fuller outline.";
+    else { drawn = pts; msg = `${pts.length} points · ready to add`; }
+    if (!drawn) stroke = [];
+    $("drawMeta").textContent = msg; $("drawAdd").disabled = !drawn; paintPad();
+  };
+  pad.addEventListener("pointerup", endStroke); pad.addEventListener("pointercancel", endStroke);
+  const uniqueName = base => { let n = base.trim() || "My shape", k = 2; const taken = x => RouteArt.SHAPES.some(s => s.name.toLowerCase() === x.toLowerCase()); let out = n; while (taken(out)) out = `${n} ${k++}`; return out; };
+  drawTile.onclick = () => {
+    stroke = []; drawn = null; $("drawAdd").disabled = true; $("drawMeta").textContent = "Draw an outline";
+    $("drawName").value = uniqueName("My shape " + (customShapes.length + 1));
+    drawDlg.querySelector('input[value=flip]').checked = true;
+    paintPad(); drawDlg.showModal ? drawDlg.showModal() : drawDlg.setAttribute("open", "");
+  };
+  $("drawClear").onclick = () => { stroke = []; drawn = null; $("drawAdd").disabled = true; $("drawMeta").textContent = "Draw an outline"; paintPad(); };
+  $("drawCancel").onclick = () => drawDlg.close();
+  $("drawAdd").onclick = () => {
+    if (!drawn) return;
+    const name = uniqueName($("drawName").value), noFlip = drawDlg.querySelector('input[name=drawFlip]:checked').value === "rotate";
+    customShapes.push({ name, pts: drawn, noFlip }); saveCustom();
+    const sh = RouteArt.addShape(name, drawn, noFlip ? { noFlip: true } : {});
+    addShapeTile(sh); state.enabled.add(name); syncLib(); drawDlg.close();
+    shapeBtns.get(name).scrollIntoView({ block: "nearest", behavior: "smooth" });
+  };
   $("selAll").onclick = () => { state.enabled = new Set(RouteArt.SHAPES.map(s => s.name)); syncLib(); };
   $("selNone").onclick = () => { state.enabled.clear(); syncLib(); };
 
@@ -2283,21 +2465,168 @@ out skel qt;`;
     }
     return out;
   }
-  let mapRoute = null;
-  function showOnMap(r) {
+  let mapRoute = null, haloLine = null, routeLine = null;
+  function showOnMap(r, keepView = false) {
     mapRoute = r;
     routeLayer.clearLayers();
-    L.polyline(r.latlng, { color: themeColour("--map-halo"), weight: 9, opacity: 0.95 }).addTo(routeLayer);
-    L.polyline(r.latlng, { color: themeColour("--accent"), weight: 5 }).addTo(routeLayer);
+    haloLine = L.polyline(r.latlng, { color: themeColour("--map-halo"), weight: 9, opacity: 0.95, interactive: false }).addTo(routeLayer);
+    routeLine = L.polyline(r.latlng, { color: themeColour("--accent"), weight: 5, interactive: false }).addTo(routeLayer);
+    if (r.edit) for (const a of r.edit.anchors) if (a.via) viaPin(a.n, r).addTo(routeLayer);
     const W = 2 ** 20, xy = r.latlng.map(([a, b]) => { const [mx, my] = merc(a, b); return [mx * W, my * W]; });
     for (const p of arrowSpots(xy, r.length / 1000)) {
       const html = `<svg viewBox="-12 -12 24 24" width="24" height="24" style="transform:rotate(${p.ang}rad)"><path d="M-7,-8 L9,0 L-7,8 L-3,0 Z" style="fill:var(--map-ink);stroke:var(--map-halo);stroke-width:2;stroke-linejoin:round"/></svg>`;
       L.marker([0, 0], { icon: L.divIcon({ className: "dir-arrow", html, iconSize: [24, 24], iconAnchor: [12, 12] }), interactive: false, keyboard: false })
         .setLatLng(L.CRS.EPSG3857.pointToLatLng(L.point(p.x / W * 256, p.y / W * 256), 0)).addTo(routeLayer);
     }
-    map.fitBounds(L.latLngBounds(r.latlng).extend(circle.getBounds()), { padding: [30, 30] });
+    if (!keepView) map.fitBounds(L.latLngBounds(r.latlng).extend(circle.getBounds()), { padding: [30, 30] });
+    syncEditBar();
   }
   state.showOnMap = showOnMap;
+
+  /* ---------- drag the route on the main map to reshape it ----------
+     The loop is held as anchors (start/finish, hidden anchors every ~400 m, and the via points you add by dragging)
+     with a street path between each pair. Dragging the line adds a via point and re-routes just that stretch along
+     real streets; dragging a via point moves it. Undo and Reset sit on the map. */
+  const ANCHOR_GAP = 400;
+  const viaPin = (n, r) => L.circleMarker([r.g.LAT[n], r.g.LON[n]], { radius: 7, weight: 3, color: themeColour("--map-ink"), fillColor: themeColour("--map-halo"), fillOpacity: 1, interactive: false });
+  function ensureEdit(r) {
+    if (r.edit) return r.edit;
+    const g = r.g, p = r.path, anchors = [{ n: p[0], via: false }], segs = [];
+    let last = 0, acc = 0;
+    for (let k = 1; k < p.length; k++) {
+      acc += Math.hypot(g.X[p[k]] - g.X[p[k - 1]], g.Y[p[k]] - g.Y[p[k - 1]]);
+      if (acc >= ANCHOR_GAP && k < p.length - 1) { segs.push(p.slice(last, k + 1)); anchors.push({ n: p[k], via: false }); last = k; acc = 0; }
+    }
+    segs.push(p.slice(last)); anchors.push({ n: p[p.length - 1], via: false });
+    if (!r.origPath) r.origPath = p.slice();
+    return (r.edit = { anchors, segs, undo: [] });
+  }
+  const joinSegs = segs => segs.reduce((out, sg, i) => out.concat(i ? sg.slice(1) : sg), []);
+  function applyPath(r, path) {
+    const g = r.g, sc = RouteArt.scorePath(g, path, r.outline, r.o.P);
+    r.path = path; r.latlng = path.map(i => [g.LAT[i], g.LON[i]]);
+    r.length = sc.length; r.reuse = sc.reuse; r.sim = sc.sim;
+    r.inRange = Math.abs(sc.length - r.targetM) <= 1000;
+    r.score = r.inRange ? sc.score : sc.score - 0.3; r.looksLike = r.inRange && sc.looks;
+    r.edited = !(r.origPath && r.origPath.length === path.length && r.origPath.every((v, i) => v === path[i]));
+    r.elev = undefined;
+  }
+  async function commitEdit(r) {
+    showOnMap(r, true);
+    if (state.elevOn) await measureElevation(r);
+    await showPage();
+    syncEditBar();
+  }
+  // edit bar on the map
+  const EditBar = L.Control.extend({ onAdd() {
+    const d = L.DomUtil.create("div", "editbar");
+    d.innerHTML = `<span class="eb-hint">Drag the route to change it</span><span class="eb-km" id="ebKm"></span><button type="button" id="ebUndo">Undo</button><button type="button" id="ebReset">Reset</button>`;
+    L.DomEvent.disableClickPropagation(d); L.DomEvent.disableScrollPropagation(d);
+    return d;
+  } });
+  new EditBar({ position: "bottomleft" }).addTo(map);
+  const editBar = map.getContainer().querySelector(".editbar"); editBar.hidden = true;
+  function syncEditBar() {
+    const r = mapRoute; editBar.hidden = !r || !r.g;
+    if (editBar.hidden) return;
+    $("ebKm").textContent = `${(r.length / 1000).toFixed(1)} km`;
+    $("ebUndo").disabled = !(r.edit && r.edit.undo.length);
+    $("ebReset").disabled = !r.edited;
+  }
+  $("ebUndo").onclick = async () => {
+    const r = mapRoute; if (!r || !r.edit || !r.edit.undo.length) return;
+    const snap = r.edit.undo.pop(); r.edit.anchors = snap.anchors; r.edit.segs = snap.segs;
+    applyPath(r, joinSegs(r.edit.segs)); await commitEdit(r);
+  };
+  $("ebReset").onclick = async () => {
+    const r = mapRoute; if (!r || !r.origPath) return;
+    const undo = r.edit ? r.edit.undo : [];
+    if (r.edit) undo.push({ anchors: r.edit.anchors, segs: r.edit.segs });
+    r.edit = null; applyPath(r, r.origPath.slice()); ensureEdit(r).undo = undo; await commitEdit(r);
+  };
+
+  const mapEl = map.getContainer();
+  let drag = null, hoverRaf = 0;
+  const cPt = (e) => { const b = mapEl.getBoundingClientRect(); return L.point(e.clientX - b.left, e.clientY - b.top); };
+  function hitTest(pt, touch) {
+    const r = mapRoute; if (!r || !r.g) return null;
+    if (r.edit) {
+      const R = touch ? 22 : 14;
+      for (let j = 1; j < r.edit.anchors.length - 1; j++) {
+        const a = r.edit.anchors[j]; if (!a.via) continue;
+        if (map.latLngToContainerPoint([r.g.LAT[a.n], r.g.LON[a.n]]).distanceTo(pt) <= R) return { mode: "via", j };
+      }
+    }
+    const lim = touch ? 18 : 10; let best = null, bd = lim;
+    let prev = map.latLngToContainerPoint(r.latlng[0]);
+    for (let k = 1; k < r.latlng.length; k++) {
+      const cur = map.latLngToContainerPoint(r.latlng[k]);
+      const d = L.LineUtil.pointToSegmentDistance(pt, prev, cur);
+      if (d < bd) { bd = d; best = { mode: "line", k }; }
+      prev = cur;
+    }
+    return best;
+  }
+  const isUi = t => t.closest && t.closest(".leaflet-control, .mapsearch, .editbar");
+  mapEl.addEventListener("pointerdown", e => {
+    if (picking || !mapRoute || !mapRoute.g || isUi(e.target) || (e.pointerType === "mouse" && e.button !== 0)) return;
+    const hit = hitTest(cPt(e), e.pointerType !== "mouse");
+    if (!hit) return;
+    e.stopPropagation(); e.preventDefault();
+    const r = mapRoute, ed = ensureEdit(r);
+    let s = hit.j; // via: anchor index
+    if (hit.mode === "line") { // which stretch between anchors holds path vertex k
+      let count = 0; s = 0;
+      for (; s < ed.segs.length; s++) { count += ed.segs[s].length - 1; if (hit.k <= count) break; }
+      s = Math.min(s, ed.segs.length - 1);
+    }
+    drag = { r, mode: hit.mode, s, id: e.pointerId, node: -1, cand: null, ghost: L.circleMarker(map.containerPointToLatLng(cPt(e)), { radius: 8, weight: 3, color: themeColour("--map-ink"), fillColor: themeColour("--accent"), fillOpacity: 1, interactive: false }).addTo(map) };
+    try { mapEl.setPointerCapture(e.pointerId); } catch (err) {}
+    mapEl.classList.add("route-dragging");
+  }, true);
+  // keep the map from panning while a route drag is under way (Leaflet starts its own drags on touchstart/mousedown)
+  for (const t of ["touchstart", "mousedown"]) mapEl.addEventListener(t, e => { if (drag) e.stopPropagation(); }, { capture: true, passive: true });
+  function previewAt(e) {
+    const d = drag, r = d.r, g = r.g, ed = r.edit, ll = map.containerPointToLatLng(cPt(e));
+    d.ghost.setLatLng(ll);
+    const [x, y] = r.proj.toXY(ll.lat, ll.lng), n = RouteArt.nearestNode(g, x, y, 250);
+    if (n < 0 || n === d.node) return;
+    d.node = n;
+    let A, B, i0, del;
+    if (d.mode === "line") { i0 = d.s; A = ed.anchors[i0].n; B = ed.anchors[i0 + 1].n; del = 1; }
+    else { i0 = d.s - 1; A = ed.anchors[i0].n; B = ed.anchors[d.s + 1].n; del = 2; }
+    const l1 = RouteArt.routeLeg(g, A, n), l2 = l1 && RouteArt.routeLeg(g, n, B);
+    if (!l1 || !l2) return;
+    const segs = ed.segs.slice(); segs.splice(i0, del, l1, l2);
+    const anchors = ed.anchors.slice();
+    if (d.mode === "line") anchors.splice(i0 + 1, 0, { n, via: true }); else anchors[d.s] = { n, via: true };
+    d.cand = { anchors, segs };
+    const lls = joinSegs(segs).map(i => [g.LAT[i], g.LON[i]]);
+    haloLine.setLatLngs(lls); routeLine.setLatLngs(lls);
+    const km = RouteArt.scorePath(g, joinSegs(segs), r.outline, r.o.P).length / 1000;
+    $("ebKm").textContent = `${km.toFixed(1)} km`;
+  }
+  mapEl.addEventListener("pointermove", e => {
+    if (drag && e.pointerId === drag.id) { e.preventDefault(); cancelAnimationFrame(hoverRaf); const ev = { clientX: e.clientX, clientY: e.clientY }; hoverRaf = requestAnimationFrame(() => drag && previewAt(ev)); return; }
+    if (e.pointerType !== "mouse" || picking) return;
+    cancelAnimationFrame(hoverRaf);
+    const ev = { clientX: e.clientX, clientY: e.clientY, target: e.target };
+    hoverRaf = requestAnimationFrame(() => mapEl.classList.toggle("route-hover", !isUi(ev.target) && !!hitTest(cPt(ev), false)));
+  }, true);
+  async function endDrag(e, cancelled) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag; drag = null; cancelAnimationFrame(hoverRaf);
+    try { mapEl.releasePointerCapture(e.pointerId); } catch (err) {}
+    mapEl.classList.remove("route-dragging"); map.removeLayer(d.ghost);
+    const r = d.r;
+    if (cancelled || !d.cand) { showOnMap(r, true); return; }
+    r.edit.undo.push({ anchors: r.edit.anchors, segs: r.edit.segs });
+    r.edit.anchors = d.cand.anchors; r.edit.segs = d.cand.segs;
+    applyPath(r, joinSegs(r.edit.segs));
+    await commitEdit(r);
+  }
+  mapEl.addEventListener("pointerup", e => endDrag(e, false), true);
+  mapEl.addEventListener("pointercancel", e => endDrag(e, true), true);
 
   /* colour theme tabs: canvases and map layers read colours when drawn, so redraw them on a switch */
   const tabs = [...document.querySelectorAll("#themeTabs button")];
@@ -2429,7 +2758,7 @@ out skel qt;`;
     if (!state.enabled.size) { setStatus("No shapes selected. Pick at least one in the shape list."); document.querySelector(".library").scrollIntoView({ behavior: "smooth" }); return; }
     if (fitCount() < 1) { setStatus(`The circle is too small for a ${targetKm} km shape. Make it bigger or press "Size circle for this distance".`); return; }
     if (!startInside()) { setStatus("The start pin is outside the circle. Move one of them so the pin sits inside."); return; }
-    $("go").disabled = true; routeLayer.clearLayers();
+    $("go").disabled = true; routeLayer.clearLayers(); mapRoute = null; editBar.hidden = true;
     try {
       const radius = Math.min(6500, area.r + 250);
       let c = state.cache;
@@ -2452,7 +2781,7 @@ out skel qt;`;
         if (p.stage === "sweep") setStatus(`Trying shapes: ${p.shapeName}, ${p.checked.toLocaleString()} placements so far`, 0.2 + 0.25 * p.frac);
         else setStatus(`Routing on real streets: ${p.routed}/${p.total}, ${p.accepted} look right so far`, 0.45 + 0.55 * p.frac);
       });
-      for (const r of res.ranked) r.outlineLL = r.outline.map(([x, y]) => proj.toLL(x, y));
+      for (const r of res.ranked) { r.outlineLL = r.outline.map(([x, y]) => proj.toLL(x, y)); r.g = graph; r.proj = proj; r.targetM = targetM; }
       const good = res.accepted.slice(), weak = res.ranked.filter(r => !r.looksLike && r.inRange);
       state.baseResults = good.concat(weak);
       state.results = state.baseResults.slice();
@@ -2494,7 +2823,7 @@ out skel qt;`;
       const turned = r.orientation !== "upright" && r.orientation !== "mirrored";
       card.innerHTML = `<canvas width="1000" height="1000" role="img" aria-label="${r.shape} route, ${km} km"></canvas>
         <div class="body">
-          <h3>${r.shape}${r.looksLike ? "" : `<em>weak match</em>`}</h3>
+          <h3>${r.shape}${r.edited ? `<em class="ed">edited</em>` : ""}${r.looksLike ? "" : `<em>weak match</em>`}</h3>
           <dl class="stats">
             <div><dt>Distance</dt><dd>${km}<small>km</small></dd></div>
             <div><dt>Fit</dt><dd>${pct}<small>%</small></dd></div>
@@ -2552,6 +2881,12 @@ out skel qt;`;
   /* Run the loop the other way: same start/finish, points in reverse order. Elevation is reversed to match and climb recounted. */
   function reverseRoute(r) {
     r.latlng.reverse(); r.reversed = !r.reversed;
+    if (r.path) r.path.reverse();
+    if (r.origPath) r.origPath.reverse();
+    if (r.edit) {
+      const flip = ed => ({ anchors: ed.anchors.slice().reverse(), segs: ed.segs.slice().reverse().map(sg => sg.slice().reverse()) });
+      const f = flip(r.edit); r.edit.anchors = f.anchors; r.edit.segs = f.segs; r.edit.undo = r.edit.undo.map(flip);
+    }
     const e = r.elev; if (!e) return;
     e.ele.reverse(); e.vertexEle.reverse();
     const D = e.d[e.d.length - 1]; e.d = e.d.map(x => D - x).reverse();
