@@ -1220,7 +1220,7 @@ body.mode-every .art-only, body:not(.mode-every) .every-only { display: none !im
           </form>
           <div class="mapfoot"><span id="circleInfo" class="art-only"></span><button type="button" id="fit" class="art-only">Size circle for this distance</button><span id="esFoot" class="every-only esfoot"></span></div>
           <div class="elevpanel" id="elevPanel" hidden>
-            <div class="ep-head"><span class="ep-name" id="epName"></span><span class="ep-stats" id="epStats"></span><span class="ep-at" id="epAt" aria-live="off"></span><button type="button" class="ep-tog" id="epToggle" aria-expanded="true" aria-controls="epGraph">Hide climb</button></div>
+            <div class="ep-head"><span class="ep-name" id="epName"></span><span class="ep-stats" id="epStats"></span><span class="ep-at" id="epAt" aria-live="off"></span><button type="button" class="ep-tog" id="epToggle" aria-expanded="true" aria-controls="epGraph">Hide elevation</button></div>
             <div class="ep-graph" id="epGraph" aria-label="Elevation along the route on the map. Hover or drag along it to see where you are on the route."></div>
           </div>
         </div>
@@ -3115,7 +3115,7 @@ out skel qt;`;
   function syncEpToggle() {
     $("elevPanel").classList.toggle("closed", epClosed);
     $("epToggle").setAttribute("aria-expanded", String(!epClosed));
-    $("epToggle").textContent = epClosed ? "Show climb" : "Hide climb";
+    $("epToggle").textContent = epClosed ? "Show elevation" : "Hide elevation";
   }
   function epShow(along) {
     const r = epRoute; if (!r || !r.elev || r !== mapRoute || epClosed) return;
