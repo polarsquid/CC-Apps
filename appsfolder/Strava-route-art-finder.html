@@ -1118,6 +1118,11 @@ body.mode-every .art-only, body:not(.mode-every) .every-only { display: none !im
 .eslog button.armed { color: var(--warn); }
 /* phones: the map credit line wraps to two lines and covered the edit bar's Undo and Reset */
 @media (max-width: 640px) { .leaflet-bottom.leaflet-left .editbar { margin-bottom: 40px; } }
+/* climb panel Hide/Show */
+.ep-tog { margin-left: 4px; padding: 3px 10px; background: transparent; color: var(--ink); border: 1.5px solid var(--ink); border-radius: 4px; font: 600 12px var(--body); white-space: nowrap; }
+@media (hover: hover) { .ep-tog:hover { background: var(--ink); color: var(--paper); } }
+.elevpanel.closed { padding-bottom: 12px; }
+.elevpanel.closed .ep-graph { display: none; }
 </style>
 </head>
 <body>
@@ -1215,7 +1220,7 @@ body.mode-every .art-only, body:not(.mode-every) .every-only { display: none !im
           </form>
           <div class="mapfoot"><span id="circleInfo" class="art-only"></span><button type="button" id="fit" class="art-only">Size circle for this distance</button><span id="esFoot" class="every-only esfoot"></span></div>
           <div class="elevpanel" id="elevPanel" hidden>
-            <div class="ep-head"><span class="ep-name" id="epName"></span><span class="ep-stats" id="epStats"></span><span class="ep-at" id="epAt" aria-live="off"></span></div>
+            <div class="ep-head"><span class="ep-name" id="epName"></span><span class="ep-stats" id="epStats"></span><span class="ep-at" id="epAt" aria-live="off"></span><button type="button" class="ep-tog" id="epToggle" aria-expanded="true" aria-controls="epGraph">Hide climb</button></div>
             <div class="ep-graph" id="epGraph" aria-label="Elevation along the route on the map. Hover or drag along it to see where you are on the route."></div>
           </div>
         </div>
@@ -3105,8 +3110,15 @@ out skel qt;`;
     const u = Math.max(0, Math.min(1, (along - e.d[j - 1]) / ((e.d[j] - e.d[j - 1]) || 1)));
     return { ll: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], h: e.ele[j - 1] + (e.ele[j] - e.ele[j - 1]) * u };
   }
+  let epClosed = false;
+  try { epClosed = localStorage.getItem("raf-ep") === "closed"; } catch (e) {}
+  function syncEpToggle() {
+    $("elevPanel").classList.toggle("closed", epClosed);
+    $("epToggle").setAttribute("aria-expanded", String(!epClosed));
+    $("epToggle").textContent = epClosed ? "Show climb" : "Hide climb";
+  }
   function epShow(along) {
-    const r = epRoute; if (!r || !r.elev || r !== mapRoute) return;
+    const r = epRoute; if (!r || !r.elev || r !== mapRoute || epClosed) return;
     const D = r.elev.d[r.elev.d.length - 1]; along = Math.max(0, Math.min(D, along));
     const { ll, h } = epAtDist(r, along), m = $("epMark");
     m.hidden = false; m.style.left = (along / D * 100) + "%";
@@ -3121,12 +3133,23 @@ out skel qt;`;
     if (!r) { panel.hidden = true; return; }
     panel.hidden = false;
     $("epName").textContent = `${r.shape} · ${(r.length / 1000).toFixed(1)} km`;
+    syncEpToggle();
+    if (epClosed) { // hidden: no graph and no download until it's opened; the climb figure still shows if already known
+      $("epGraph").innerHTML = "";
+      $("epStats").innerHTML = r.elev && r.elev.vd ? `<strong>↑ ${r.elev.gain}</strong> m climb · ↓ ${r.elev.loss} m descent` : "";
+      return;
+    }
     if (r.elev === undefined) { $("epStats").textContent = "Measuring climb…"; $("epGraph").innerHTML = ""; await measureElevation(r); }
     if (epRoute !== r) return;
     if (!r.elev || !r.elev.vd) { $("epStats").textContent = "Climb data isn't available here."; $("epGraph").innerHTML = ""; return; }
     $("epStats").innerHTML = `<strong>↑ ${r.elev.gain}</strong> m climb · ↓ ${r.elev.loss} m descent`;
     $("epGraph").innerHTML = epSvg(r.elev);
   }
+  $("epToggle").onclick = () => {
+    epClosed = !epClosed; try { localStorage.setItem("raf-ep", epClosed ? "closed" : "open"); } catch (e) {}
+    epHide(); updateElevPanel(epRoute);
+  };
+  syncEpToggle();
   // scrub along the graph (mouse hover, or touch and drag on a phone)
   const graphAlong = e => { const b = $("epGraph").getBoundingClientRect(), r = epRoute; return r && r.elev ? (e.clientX - b.left) / b.width * r.elev.d[r.elev.d.length - 1] : 0; };
   $("epGraph").addEventListener("pointerdown", e => { if (!epRoute || !epRoute.elev) return; try { $("epGraph").setPointerCapture(e.pointerId); } catch (err) {} epShow(graphAlong(e)); });
