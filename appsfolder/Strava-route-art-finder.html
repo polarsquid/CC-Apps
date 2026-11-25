@@ -1070,17 +1070,77 @@ button { border-radius: 4px; }
 .ep-mark { position: absolute; top: 0; bottom: 0; width: 0; pointer-events: none; }
 .ep-mark i { position: absolute; top: 0; bottom: 0; left: -1px; border-left: 2px solid var(--ink); }
 .ep-mark b { position: absolute; left: -7px; width: 14px; height: 14px; margin-top: -7px; border-radius: 50%; background: var(--map-ink); box-shadow: 0 0 0 3px var(--map-halo); }
+/* ---- Every street mode ---- */
+body.mode-every .art-only, body:not(.mode-every) .every-only { display: none !important; }
+.modes { flex-basis: 100%; display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin-top: 4px; }
+.modes button { background: none; border: 0; border-bottom: 3px solid transparent; border-radius: 0; margin-bottom: -1px; padding: 8px 0 7px; color: var(--muted); font: 600 15px var(--body); }
+.modes button:hover { color: var(--ink); }
+.modes button[aria-selected=true] { color: var(--ink); border-bottom-color: var(--accent); }
+.eschoices { display: flex; flex-direction: column; gap: 6px; }
+.eschoices .hint { margin: 2px 0 0; }
+.eschoices button { text-align: left; background: transparent; color: var(--ink); border: 1px solid var(--line); padding: 8px 10px; font: 500 13px/1.35 var(--body); }
+.eschoices button:hover { border-color: var(--ink); }
+.eschoices button span { color: var(--muted); }
+.essaved { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.essaved .lbl { flex-basis: 100%; }
+.essub { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.essub button { background: transparent; color: var(--ink); border: 0; border-radius: 0; padding: 5px 8px; font: 600 13px var(--body); }
+.essub button small { color: var(--muted); font: 500 11px var(--mono); }
+.essub button[aria-pressed=true] { background: var(--ink); color: var(--paper); }
+.essub button[aria-pressed=true] small { color: inherit; opacity: .75; }
+.essub .esdel { color: var(--muted); border-left: 1px solid var(--line); padding: 5px 7px; font-weight: 600; }
+.essub .esdel.armed { background: var(--warn); color: #fff; font-size: 11px; }
+.esprog .dist small { font-size: 15px; }
+.esbar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.esbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.esline { margin: 0; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.esline strong { color: var(--ink); }
+.esprog .ghost, .controls .libbtns .ghost { padding: 7px 12px; align-self: flex-start; }
+.controls .libbtns { flex-wrap: wrap; }
+.esfoot { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; justify-content: space-between; flex: 1; }
+.esfoot strong { color: var(--ink); }
+.eslegend { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.sw { display: inline-block; width: 18px; height: 4px; border-radius: 2px; margin-left: 6px; }
+.sw:first-child { margin-left: 0; }
+.sw.done { background: var(--accent); }
+.sw.todo { background: var(--map-muted); opacity: .55; }
+.sw.edge { height: 0; border-radius: 0; border-top: 2px dashed var(--map-ink); }
+.card h3 em.ok { color: var(--ok); }
+.actions button[data-a=mark] { order: -2; flex: 1 1 100%; background: var(--accent); color: var(--on-accent); border: 0; text-decoration: none; padding: 11px 14px; font-weight: 600; }
+.actions button[data-a=mark][aria-pressed=true] { background: transparent; color: var(--ok); border: 1.5px solid currentColor; padding: 9.5px 14px; }
+.eslogsec { margin-top: 36px; }
+.eslog { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.eslog li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.eslog .d { font: 500 12px var(--mono); color: var(--muted); min-width: 8ch; }
+.eslog .k { flex: 1; color: var(--muted); }
+.eslog .k strong { color: var(--ink); font-weight: 600; }
+.eslog button { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; font: 500 13px var(--body); }
+.eslog button.armed { color: var(--warn); }
+/* phones: the map credit line wraps to two lines and covered the edit bar's Undo and Reset */
+@media (max-width: 640px) { .leaflet-bottom.leaflet-left .editbar { margin-bottom: 40px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1>Route Art <span>Finder</span></h1>
-    <p>Set a distance and circle where you want to run. It tries all 41 shapes in the library at 16 angles, mirrored and not, routes each one on real streets, and keeps only the runs that still look like the shape.</p>
+    <p class="art-only">Set a distance and circle where you want to run. It tries all 41 shapes in the library at 16 angles, mirrored and not, routes each one on real streets, and keeps only the runs that still look like the shape.</p>
+    <p class="every-only">Pick a suburb and a distance. It plans loops from your start that cover every street, lane and path in it, and keeps a map of the ones you've done.</p>
+    <nav class="modes" role="tablist" aria-label="Tool"><button type="button" role="tab" id="tabArt" aria-selected="true">Route art</button><button type="button" role="tab" id="tabEvery" aria-selected="false">Every street</button></nav>
   </header>
 
   <div class="layout">
     <form class="controls" id="form" autocomplete="off">
+      <div class="field every-only" id="esSubField">
+        <span class="lbl">Suburb</span>
+        <div class="startrow">
+          <input type="text" id="esSub" placeholder="Type a suburb, like Annandale NSW" aria-label="Suburb">
+          <button type="button" class="ghost" id="esSubGo">Load</button>
+        </div>
+        <div class="eschoices" id="esChoices" hidden></div>
+        <div class="startset" id="esSubInfo" hidden><span id="esSubText"></span></div>
+        <div class="essaved" id="esSaved" hidden></div>
+      </div>
       <div class="field">
         <span class="lbl">Target distance</span>
         <div class="dist"><output id="distOut">10</output><small>km</small><span class="tol">±1 km</span></div>
@@ -1088,7 +1148,7 @@ button { border-radius: 4px; }
         <div class="ticks"><span style="--f:0.0000">2</span><span style="--f:0.1667">5</span><span style="--f:0.4444">10</span><span style="--f:0.7222">15</span><span style="--f:1.0000">20</span></div>
       </div>
       <div class="field">
-        <span class="lbl">Start and finish <em>(optional)</em></span>
+        <span class="lbl">Start and finish <em class="art-only">(optional)</em></span>
         <div class="startrow">
           <input type="text" id="start" placeholder="Type an address" aria-label="Start and finish address">
           <button type="button" class="ghost" id="startSet">Set</button>
@@ -1096,8 +1156,9 @@ button { border-radius: 4px; }
         <div class="startrow"><button type="button" class="ghost" id="pick" aria-pressed="false" style="padding:7px 10px">Or tap the map to drop the pin</button></div>
         <div class="startset" id="startInfo" hidden><span id="startText"></span><button type="button" id="startClear">Remove</button></div>
       </div>
-      <p class="hint" style="margin-top:-6px">Leave it empty and the loop can start anywhere on the shape.</p>
-      <div class="field" id="focusField">
+      <p class="hint art-only" style="margin-top:-6px">Leave it empty and the loop can start anywhere on the shape.</p>
+      <p class="hint every-only" style="margin-top:-6px">Every run starts and finishes here, even if it's outside the suburb. The streets between get run each time.</p>
+      <div class="field art-only" id="focusField">
         <span class="lbl">Focus area <em>(optional)</em></span>
         <button type="button" class="ghost" id="focusAdd" style="padding:7px 10px">Add a focus area</button>
         <div class="focuson" id="focusOn" hidden>
@@ -1105,23 +1166,37 @@ button { border-radius: 4px; }
           <button type="button" class="focusrm" id="focusRemove">Remove focus area</button>
         </div>
       </div>
-      <p class="hint" id="focusHint" style="margin-top:-6px">Make part of the run pass through a smaller area inside the circle, like a harbour foreshore or a park.</p>
-      <div class="field">
+      <p class="hint art-only" id="focusHint" style="margin-top:-6px">Make part of the run pass through a smaller area inside the circle, like a harbour foreshore or a park.</p>
+      <div class="field art-only">
         <span class="lbl">Options to show</span>
         <div class="seg" id="perSeg" role="group" aria-label="Options to show">
           <button type="button" data-n="3" aria-pressed="false">3</button><button type="button" data-n="6" aria-pressed="true">6</button><button type="button" data-n="9" aria-pressed="false">9</button><button type="button" data-n="12" aria-pressed="false">12</button>
         </div>
       </div>
-      <div class="field">
+      <div class="field art-only">
         <label class="toggle" for="elevOn"><input type="checkbox" id="elevOn"> Show elevation gain</label>
         <div class="seg seg3" id="sortSeg" role="group" aria-label="Order routes by" hidden>
           <button type="button" data-s="match" aria-pressed="true">Best match</button><button type="button" data-s="flat" aria-pressed="false">Flattest</button><button type="button" data-s="hilly" aria-pressed="false">Hilliest</button>
         </div>
       </div>
-      <button class="go" id="go" type="submit">Find routes</button>
+      <button class="go art-only" id="go" type="submit">Find routes</button>
+      <button class="go every-only" id="esPlan" type="button">Plan runs</button>
       <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
       <div class="status" id="status" role="status">Ready. Street data comes from OpenStreetMap.</div>
-      <p class="hint">Streets load in a few seconds. Repeat searches in the same area reuse them.</p>
+      <p class="hint art-only">Streets load in a few seconds. Repeat searches in the same area reuse them.</p>
+      <div class="field every-only esprog" id="esProg" hidden>
+        <span class="lbl">Progress</span>
+        <div class="dist"><output id="esPct">–</output><small>% done</small></div>
+        <div class="esbar" aria-hidden="true"><i id="esBarFill"></i></div>
+        <p class="esline" id="esLine"></p>
+        <button type="button" class="ghost" id="esImg">Save progress image</button>
+      </div>
+      <div class="field every-only">
+        <span class="lbl">Backup</span>
+        <div class="libbtns"><button type="button" class="ghost" id="esExport">Export backup</button><button type="button" class="ghost" id="esImport">Import backup</button></div>
+        <input type="file" id="esFile" accept=".json,application/json" hidden>
+        <p class="hint">Progress is saved in this browser. Export a backup now and then, and import it on another phone or computer.</p>
+      </div>
       <div class="field themes">
         <span class="lbl">Colour theme <em id="themeName"></em></span>
         <div class="track" id="themeTabs" role="group" aria-label="Colour theme"><button type="button" data-t="sunrise" title="Sunrise" style="--c:#ff5a36"><span class="sr">Sunrise</span></button><button type="button" data-t="lagoon" title="Lagoon" style="--c:#00a396"><span class="sr">Lagoon</span></button><button type="button" data-t="harbour" title="Harbour" style="--c:#0057ff"><span class="sr">Harbour</span></button><button type="button" data-t="bush" title="Bush" style="--c:#4c7a2e"><span class="sr">Bush</span></button><button type="button" data-t="plain" title="Plain" style="--c:#111111"><span class="sr">Plain</span></button><button type="button" data-t="night" title="Night" style="--c:#9b7bff"><span class="sr">Night</span></button></div>
@@ -1130,7 +1205,7 @@ button { border-radius: 4px; }
 
     <main>
       <section class="where">
-        <div class="section-h"><h2>Where to run</h2><p>Drag the circle's centre to move it and its edge dot to resize. Routes stay inside.</p></div>
+        <div class="section-h"><h2>Where to run</h2><p class="art-only">Drag the circle's centre to move it and its edge dot to resize. Routes stay inside.</p><p class="every-only">Grey streets are still to run, coloured ones are done.</p></div>
         <div class="netwarn" id="netwarn" role="alert" hidden><strong>The map services can't be reached from here.</strong> This usually means the file is open inside a preview (for example the Claude app's file viewer), which blocks internet access. Download the file, then open it from your Downloads folder in Chrome, Safari, Edge or Firefox. If it's already open in a browser, check your internet connection or any ad or content blocker.</div>
         <div class="mapbox">
           <div id="map" role="application" aria-label="Map for choosing the running area"></div>
@@ -1138,7 +1213,7 @@ button { border-radius: 4px; }
             <input type="text" id="jumpTo" placeholder="Jump to a suburb or place" aria-label="Jump to a place">
             <button type="submit">Go</button>
           </form>
-          <div class="mapfoot"><span id="circleInfo"></span><button type="button" id="fit">Size circle for this distance</button></div>
+          <div class="mapfoot"><span id="circleInfo" class="art-only"></span><button type="button" id="fit" class="art-only">Size circle for this distance</button><span id="esFoot" class="every-only esfoot"></span></div>
           <div class="elevpanel" id="elevPanel" hidden>
             <div class="ep-head"><span class="ep-name" id="epName"></span><span class="ep-stats" id="epStats"></span><span class="ep-at" id="epAt" aria-live="off"></span></div>
             <div class="ep-graph" id="epGraph" aria-label="Elevation along the route on the map. Hover or drag along it to see where you are on the route."></div>
@@ -1146,14 +1221,26 @@ button { border-radius: 4px; }
         </div>
       </section>
 
-      <section id="results">
+      <section id="results" class="art-only">
         <div class="section-h"><h2>Your routes</h2><p id="summary"></p></div>
         <div class="empty" id="empty"><strong>No search yet.</strong> Set a distance, place the circle where you want to run, then press <strong>Find routes</strong>. Each option comes back as a map image you can save, plus a GPX file for Strava, Garmin or Coros.</div>
         <div class="cards" id="cards"></div>
         <button class="more" id="more" type="button" hidden>Show more</button>
       </section>
 
-      <section class="library">
+      <section id="esRuns" class="every-only">
+        <div class="section-h"><h2>Planned runs</h2><p id="esSummary"></p></div>
+        <div class="empty" id="esEmpty"></div>
+        <div class="cards" id="esCards"></div>
+        <button class="more" id="esMore" type="button" hidden>Show more</button>
+      </section>
+
+      <section id="esLogSec" class="every-only eslogsec" hidden>
+        <div class="section-h"><h2>Runs you've done</h2><p id="esLogSum"></p></div>
+        <ol class="eslog" id="esLog"></ol>
+      </section>
+
+      <section class="library art-only">
         <div class="section-h"><h2>Shapes</h2><p>Tap shapes to switch them on or off. Only switched-on shapes are searched.</p></div>
         <div class="libbar">
           <span id="libCount" aria-live="polite"></span>
@@ -1162,7 +1249,7 @@ button { border-radius: 4px; }
         <div class="shapes" id="shapes"></div>
       </section>
 
-      <p class="note">How a route is judged: the shape is dropped onto the map, every corner is routed along runnable streets and paths, then the finished loop is compared with the ideal outline (overlap of the two silhouettes, average drift, and whether sharp points like ears, fins and star tips were actually reached). Routes that drift, cut corners off, or double back on themselves are thrown out. Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>, street data served by <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>, basemap tiles © Esri (Esri, HERE, Garmin, OpenStreetMap contributors). Check every route for safety before you run it.</p>
+      <p class="note"><span class="every-only">Every street counts the streets, lanes, footpaths, park paths and public driveways inside the suburb boundary. Footpaths running right beside a road count as part of that road. A street is done when a run you've ticked off goes along it. </span><span class="art-only">How a route is judged: the shape is dropped onto the map, every corner is routed along runnable streets and paths, then the finished loop is compared with the ideal outline (overlap of the two silhouettes, average drift, and whether sharp points like ears, fins and star tips were actually reached). Routes that drift, cut corners off, or double back on themselves are thrown out. </span>Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>, street data served by <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>, basemap tiles © Esri (Esri, HERE, Garmin, OpenStreetMap contributors). Check every route for safety before you run it.</p>
     </main>
   </div>
 </div>
@@ -1355,7 +1442,7 @@ const RouteArt = (() => {
         const i = getIdx(id);
         if (i >= 0 && prev >= 0 && i !== prev) {
           const key = i < prev ? i * 4294967296 + prev : prev * 4294967296 + i;
-          if (!pairs.has(key)) pairs.set(key, [Math.min(i, prev), Math.max(i, prev)]);
+          if (!pairs.has(key)) pairs.set(key, e.kind === undefined ? [Math.min(i, prev), Math.max(i, prev)] : [Math.min(i, prev), Math.max(i, prev), e.kind]);
         }
         prev = i;
       }
@@ -1380,7 +1467,7 @@ const RouteArt = (() => {
     for (let i = 0; i < n; i++) if (comp[i] === best) map[i] = m++;
     const X = new Float64Array(m), Y = new Float64Array(m), LAT = new Float64Array(m), LON = new Float64Array(m);
     for (let i = 0; i < n; i++) if (map[i] >= 0) { X[map[i]] = xs[i]; Y[map[i]] = ys[i]; LAT[map[i]] = lat[i]; LON[map[i]] = lon[i]; }
-    const E = edges.filter(([a, b]) => map[a] >= 0 && map[b] >= 0).map(([a, b]) => [map[a], map[b]]);
+    const E = edges.filter(([a, b]) => map[a] >= 0 && map[b] >= 0).map(([a, b, k]) => [map[a], map[b], k]);
     const start = new Int32Array(m + 1);
     for (const [a, b] of E) { start[a + 1]++; start[b + 1]++; }
     for (let i = 0; i < m; i++) start[i + 1] += start[i];
@@ -1393,6 +1480,7 @@ const RouteArt = (() => {
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (let i = 0; i < m; i++) { x0 = Math.min(x0, X[i]); x1 = Math.max(x1, X[i]); y0 = Math.min(y0, Y[i]); y1 = Math.max(y1, Y[i]); }
     const g = { n: m, X, Y, LAT, LON, start, to, len, eid, nEdges: E.length, bounds: [x0, y0, x1, y1] };
+    if (E.some(e => e[2] !== undefined)) g.ekind = Int8Array.from(E, e => e[2] | 0); // street kind per segment (Every street mode only)
     buildNodeIndex(g); buildDistGrid(g, E);
     return g;
   }
@@ -1998,6 +2086,10 @@ const StreetTiles = (() => {
   const DROP_SUB = new Set(["platform", "corridor", "steps", "bridleway", "elevator"]);
   const DROP_SERVICE = new Set(["parking_aisle", "driveway", "drive-through"]);
   const runnable = p => KEEP.has(p.class) && !DROP_SUB.has(p.subclass) && !DROP_SERVICE.has(p.service) && p.access !== "no" && p.access !== "private" && p.foot !== "no" && p.indoor !== 1;
+  /* "Every street" mode also keeps public driveways (private ones are already dropped by the access check) */
+  const runnableEvery = p => runnable(p) || (p.service === "driveway" && runnable({ ...p, service: undefined }));
+  /* street kind for "Every street": 0 road, 1 lane or service road, 2 driveway, 3 footpath, cycleway or track */
+  const kindOf = p => p.service === "driveway" ? 2 : p.class === "service" ? 1 : (p.class === "path" || p.class === "track" || p.class === "pedestrian") ? 3 : 0;
 
   /* clip a polyline to the square [0,E]x[0,E]; returns pieces */
   function clip(line, E) {
@@ -2029,14 +2121,14 @@ const StreetTiles = (() => {
   /* tiles: [{x, y, buf}] -> OSM-style elements for RouteArt.buildGraph.
      Tile geometry is simplified, so junctions are rebuilt geometrically: lines that cross
      (unless one is a bridge or tunnel) or end on another line are joined there. */
-  function toElements(tiles) {
-    const n = 2 ** Z, lines = [];
+  function toElements(tiles, opts = {}) {
+    const n = 2 ** Z, lines = [], keep = opts.every ? runnableEvery : runnable;
     for (const { x: tx, y: ty, buf } of tiles) {
       for (const f of decodeLayer(buf, "transportation")) {
-        if (!runnable(f.props)) continue;
-        const E = f.extent, Q = 4096 / E, raised = !!f.props.brunnel;
+        if (!keep(f.props)) continue;
+        const E = f.extent, Q = 4096 / E, raised = !!f.props.brunnel, kind = opts.every ? kindOf(f.props) : undefined;
         for (const line of f.lines) for (const piece of clip(line, E))
-          lines.push({ pts: piece.map(([x, y]) => [(tx * E + x) * Q, (ty * E + y) * Q]), raised });
+          lines.push({ pts: piece.map(([x, y]) => [(tx * E + x) * Q, (ty * E + y) * Q]), raised, kind });
       }
     }
     // spatial hash of segments
@@ -2084,15 +2176,397 @@ const StreetTiles = (() => {
           const [ax, ay] = l.pts[i], [bx, by] = l.pts[i + 1]; push(ax + (bx - ax) * t, ay + (by - ay) * t);
         }
       }
-      if (ids.length > 1) ways.push({ type: "way", nodes: ids });
+      if (ids.length > 1) ways.push(l.kind === undefined ? { type: "way", nodes: ids } : { type: "way", nodes: ids, kind: l.kind });
     }
     // T-junction ends that stopped just short: link them to the cut point they belong to
     return [...nodes.values(), ...ways];
   }
-  return { Z, tileRange, decodeLayer, toElements, clip };
+  /* street names (Every street mode): named lines as {type: "name", name, ll: [[lat, lon], ...]} */
+  function names(tiles) {
+    const n = 2 ** Z, out = [];
+    for (const { x: tx, y: ty, buf } of tiles) for (const f of decodeLayer(buf, "transportation_name")) {
+      if (!f.props.name) continue;
+      const E = f.extent;
+      for (const line of f.lines) for (const piece of clip(line, E)) out.push({ type: "name", name: String(f.props.name), ll: piece.map(([x, y]) => {
+        const mx = (tx * E + x) / (E * n), my = (ty * E + y) / (E * n);
+        return [+(Math.atan(Math.sinh(Math.PI * (1 - 2 * my))) * 180 / Math.PI).toFixed(6), +(mx * 360 - 180).toFixed(6)];
+      }) });
+    }
+    return out;
+  }
+  return { Z, tileRange, decodeLayer, toElements, clip, names };
 })();
 if (typeof module !== "undefined") module.exports = StreetTiles;
 /*TILES-END*/
+
+/*EVERY-START*/
+/* "Every street" engine: which street segments are in the suburb, which are done, and planning the next runs.
+   Works on the graph from RouteArt.buildGraph (metres, y south). Street "chains" run junction to junction. */
+const EveryStreet = (() => {
+  /* even-odd point-in-polygon over all rings (outer rings and holes, any number of polygons) */
+  function inRings(rings, x, y) {
+    let inside = false;
+    for (const ring of rings) {
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [xi, yi] = ring[i], [xj, yj] = ring[j];
+        if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+      }
+    }
+    return inside;
+  }
+  const edgeOf = (g, a, b) => { for (let e = g.start[a]; e < g.start[a + 1]; e++) if (g.to[e] === b) return e; return -1; };
+
+  /* street chains between junctions. force: node ids that must be chain ends (the start of a run) */
+  function chains(g, force) {
+    const deg = n => g.start[n + 1] - g.start[n];
+    const isJ = new Uint8Array(g.n);
+    for (let i = 0; i < g.n; i++) if (deg(i) !== 2) isJ[i] = 1;
+    if (force) for (const f of force) if (f >= 0) isJ[f] = 1;
+    const seenE = new Uint8Array(g.nEdges), out = [];
+    const walk = (a, e0) => {
+      const nodes = [a], eids = []; let prev = a, e = e0, len = 0;
+      for (;;) {
+        const v = g.to[e]; seenE[g.eid[e]] = 1; eids.push(g.eid[e]); len += g.len[e]; nodes.push(v);
+        if (isJ[v] || v === a) break;
+        let next = -1;
+        for (let k = g.start[v]; k < g.start[v + 1]; k++) if (g.to[k] !== prev && !seenE[g.eid[k]]) { next = k; break; }
+        if (next < 0) break;
+        prev = v; e = next;
+      }
+      out.push({ a, b: nodes[nodes.length - 1], nodes, eids, len });
+    };
+    for (let a = 0; a < g.n; a++) if (isJ[a]) for (let e = g.start[a]; e < g.start[a + 1]; e++) if (!seenE[g.eid[e]]) walk(a, e);
+    // loops with no junction on them at all (an island ring of paths)
+    for (let a = 0; a < g.n; a++) for (let e = g.start[a]; e < g.start[a + 1]; e++) if (!seenE[g.eid[e]]) { isJ[a] = 1; walk(a, e); }
+    return out;
+  }
+
+  /* per segment: does it count towards the suburb? inside it, and not a footpath running alongside a road */
+  function analyse(g, rings, names) {
+    const E = g.nEdges, mx = new Float64Array(E), my = new Float64Array(E), elen = new Float64Array(E), ea = new Int32Array(E), eb = new Int32Array(E);
+    for (let u = 0; u < g.n; u++) for (let e = g.start[u]; e < g.start[u + 1]; e++) {
+      const v = g.to[e]; if (v < u) continue; const k = g.eid[e];
+      mx[k] = (g.X[u] + g.X[v]) / 2; my[k] = (g.Y[u] + g.Y[v]) / 2; elen[k] = g.len[e]; ea[k] = u; eb[k] = v;
+    }
+    const inside = new Uint8Array(E);
+    for (let k = 0; k < E; k++) inside[k] = inRings(rings, mx[k], my[k]) ? 1 : 0;
+    const kind = g.ekind || new Int8Array(E);
+    // spatial hash of road segments (kind 0 and 1) to spot footpaths drawn beside them
+    const CS = 30, hash = new Map(), key = (i, j) => i * 1e6 + j;
+    for (let k = 0; k < E; k++) if (kind[k] <= 1) {
+      const x0 = Math.min(g.X[ea[k]], g.X[eb[k]]) - 16, x1 = Math.max(g.X[ea[k]], g.X[eb[k]]) + 16, y0 = Math.min(g.Y[ea[k]], g.Y[eb[k]]) - 16, y1 = Math.max(g.Y[ea[k]], g.Y[eb[k]]) + 16;
+      for (let i = Math.floor(x0 / CS); i <= Math.floor(x1 / CS); i++) for (let j = Math.floor(y0 / CS); j <= Math.floor(y1 / CS); j++) { const h = key(i, j); let b = hash.get(h); if (!b) hash.set(h, b = []); b.push(k); }
+    }
+    const besideRoad = k => {
+      const ax = g.X[ea[k]], ay = g.Y[ea[k]], bx = g.X[eb[k]], by = g.Y[eb[k]], L = Math.hypot(bx - ax, by - ay);
+      const b = hash.get(key(Math.floor(mx[k] / CS), Math.floor(my[k] / CS))); if (!b) return false;
+      for (const r of b) {
+        const px = g.X[ea[r]], py = g.Y[ea[r]], qx = g.X[eb[r]], qy = g.Y[eb[r]], dx = qx - px, dy = qy - py, RL = Math.hypot(dx, dy);
+        if (!RL) continue;
+        const t = Math.max(0, Math.min(1, ((mx[k] - px) * dx + (my[k] - py) * dy) / (RL * RL)));
+        if (Math.hypot(px + t * dx - mx[k], py + t * dy - my[k]) > 15) continue;
+        if (L < 1 || Math.abs((bx - ax) * dx + (by - ay) * dy) / (L * RL) > 0.9) return true; // within ~25° of parallel
+      }
+      return false;
+    };
+    const ch = chains(g);
+    const required = new Uint8Array(E), chainOf = new Int32Array(E).fill(-1);
+    ch.forEach((c, ci) => {
+      for (const k of c.eids) chainOf[k] = ci;
+      let inLen = 0; for (const k of c.eids) if (inside[k]) inLen += elen[k];
+      if (!inLen) return;
+      if (kind[c.eids[0]] === 3) { // a footpath: skip it when most of it shadows a road
+        let side = 0; for (const k of c.eids) if (besideRoad(k)) side += elen[k];
+        if (side > 0.6 * c.len) { c.beside = true; return; }
+      }
+      for (const k of c.eids) if (inside[k]) required[k] = 1;
+    });
+    // street names (from the map's name layer): nearest named line to each counted chain
+    const chainName = new Array(ch.length).fill(null);
+    if (names && names.length) {
+      const NH = new Map(), NC = 40;
+      names.forEach((nl, ni) => { for (let i = 1; i < nl.xy.length; i++) {
+        const [ax, ay] = nl.xy[i - 1], [bx, by] = nl.xy[i];
+        for (let a = Math.floor((Math.min(ax, bx) - 12) / NC); a <= Math.floor((Math.max(ax, bx) + 12) / NC); a++) for (let b = Math.floor((Math.min(ay, by) - 12) / NC); b <= Math.floor((Math.max(ay, by) + 12) / NC); b++) { const h = key(a, b); let s = NH.get(h); if (!s) NH.set(h, s = []); s.push(ni, i); }
+      } });
+      ch.forEach((c, ci) => {
+        const votes = new Map();
+        for (const k of c.eids) {
+          if (!required[k]) continue;
+          const s = NH.get(key(Math.floor(mx[k] / NC), Math.floor(my[k] / NC))); if (!s) continue;
+          let best = -1, bd = 12;
+          for (let q = 0; q < s.length; q += 2) {
+            const nl = names[s[q]], [ax, ay] = nl.xy[s[q + 1] - 1], [bx, by] = nl.xy[s[q + 1]], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+            const t = L2 ? Math.max(0, Math.min(1, ((mx[k] - ax) * dx + (my[k] - ay) * dy) / L2)) : 0, d = Math.hypot(ax + t * dx - mx[k], ay + t * dy - my[k]);
+            if (d < bd) { bd = d; best = s[q]; }
+          }
+          if (best >= 0) { const nm = names[best].name; votes.set(nm, (votes.get(nm) || 0) + elen[k]); }
+        }
+        let top = null, tv = 0; for (const [nm, v] of votes) if (v > tv) { tv = v; top = nm; }
+        chainName[ci] = top;
+      });
+    }
+    let total = 0; for (let k = 0; k < E; k++) if (required[k]) total += elen[k];
+    return { required, inside, elen, chainOf, chains: ch, chainName, total, mx, my, ea, eb };
+  }
+
+  /* which segments a set of runs (arrays of [x, y]) went along: every sample of the segment within tol of a run */
+  function matchRuns(g, an, runsXY, tol = 7) {
+    const E = g.nEdges, done = new Uint8Array(E);
+    if (!runsXY.length) return done;
+    const CS = 25, hash = new Map(), key = (i, j) => i * 1e6 + j, segs = [];
+    for (const pts of runsXY) for (let i = 1; i < pts.length; i++) {
+      const [ax, ay] = pts[i - 1], [bx, by] = pts[i], s = segs.length; segs.push(ax, ay, bx, by);
+      for (let a = Math.floor((Math.min(ax, bx) - tol) / CS); a <= Math.floor((Math.max(ax, bx) + tol) / CS); a++) for (let b = Math.floor((Math.min(ay, by) - tol) / CS); b <= Math.floor((Math.max(ay, by) + tol) / CS); b++) { const h = key(a, b); let l = hash.get(h); if (!l) hash.set(h, l = []); l.push(s); }
+    }
+    const near = (x, y) => {
+      const l = hash.get(key(Math.floor(x / CS), Math.floor(y / CS))); if (!l) return false;
+      for (const s of l) {
+        const ax = segs[s], ay = segs[s + 1], dx = segs[s + 2] - ax, dy = segs[s + 3] - ay, L2 = dx * dx + dy * dy;
+        const t = L2 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L2)) : 0;
+        if (Math.hypot(ax + t * dx - x, ay + t * dy - y) <= tol) return true;
+      }
+      return false;
+    };
+    for (let k = 0; k < E; k++) {
+      if (!an.inside[k] && !an.required[k]) continue;
+      const ax = g.X[an.ea[k]], ay = g.Y[an.ea[k]], bx = g.X[an.eb[k]], by = g.Y[an.eb[k]], L = an.elen[k];
+      const n = Math.max(1, Math.ceil(L / 10)); let ok = true;
+      for (let i = 0; i <= n && ok; i++) { const t = L > 8 ? 0.1 + 0.8 * i / n : 0.5; if (!near(ax + (bx - ax) * t, ay + (by - ay) * t)) ok = false; if (L <= 8) break; }
+      if (ok) done[k] = 1;
+    }
+    return done;
+  }
+
+  /* progress figures: by length, and by named street (a street counts when 95% of its length in the suburb is done) */
+  function progress(an, done) {
+    let doneLen = 0; const streets = new Map();
+    for (let k = 0; k < an.required.length; k++) {
+      if (!an.required[k]) continue;
+      if (done[k]) doneLen += an.elen[k];
+      const nm = an.chainName[an.chainOf[k]]; if (!nm) continue;
+      let s = streets.get(nm); if (!s) streets.set(nm, s = { len: 0, done: 0 });
+      s.len += an.elen[k]; if (done[k]) s.done += an.elen[k];
+    }
+    let nDone = 0; for (const s of streets.values()) if (s.done >= 0.95 * s.len) nDone++;
+    return { total: an.total, done: doneLen, frac: an.total ? doneLen / an.total : 0, streets: streets.size, streetsDone: nDone };
+  }
+
+  /* ---------- planning: a loop from the start that covers as much undone street as it can within the distance ---------- */
+  class Heap {
+    constructor() { this.k = []; this.v = []; }
+    push(key, val) { const k = this.k, v = this.v; let i = k.length; k.push(key); v.push(val); while (i > 0) { const p = (i - 1) >> 1; if (k[p] <= key) break; k[i] = k[p]; v[i] = v[p]; i = p; } k[i] = key; v[i] = val; }
+    pop() { const k = this.k, v = this.v, top = v[0], lk = k.pop(), lv = v.pop(), n = k.length; if (n) { let i = 0; for (;;) { let c = 2 * i + 1; if (c >= n) break; if (c + 1 < n && k[c + 1] < k[c]) c++; if (k[c] >= lk) break; k[i] = k[c]; v[i] = v[c]; i = c; } k[i] = lk; v[i] = lv; } return top; }
+    get size() { return this.k.length; }
+  }
+  /* junction graph built once per start: chains with the start forced to be a junction */
+  function prepare(g, an, startNode) {
+    const ch = chains(g, [startNode]), jIdx = new Map(), J = [];
+    const jid = n => { let j = jIdx.get(n); if (j === undefined) { j = J.length; jIdx.set(n, j); J.push(n); } return j; };
+    const adj = [];
+    ch.forEach((c, ci) => {
+      c.ja = jid(c.a); c.jb = jid(c.b);
+      let need = 0; for (const k of c.eids) if (an.required[k]) need += an.elen[k];
+      c.reqLen = need;
+      (adj[c.ja] = adj[c.ja] || []).push(ci);
+      if (c.jb !== c.ja) (adj[c.jb] = adj[c.jb] || []).push(ci);
+    });
+    for (let j = 0; j < J.length; j++) if (!adj[j]) adj[j] = [];
+    return { ch, J, adj, s: jid(startNode) };
+  }
+  // Dijkstra on the junction graph. weight(ci) -> cost; also tracks real metres. limit: stop beyond this real distance
+  function dijkstra(P, src, weight, limit, stopWhen, expose) {
+    const n = P.J.length, dw = new Float64Array(n).fill(Infinity), dr = new Float64Array(n).fill(Infinity), via = new Int32Array(n).fill(-1), fin = new Uint8Array(n);
+    if (expose) expose(dw, dr);
+    dw[src] = 0; dr[src] = 0; const h = new Heap(); h.push(0, src);
+    while (h.size) {
+      const u = h.pop(), du = dw[u];
+      if (fin[u]) continue; fin[u] = 1;
+      if (stopWhen && stopWhen(u, du)) break;
+      for (const ci of P.adj[u]) {
+        const c = P.ch[ci], v = c.ja === u ? c.jb : c.ja, nr = dr[u] + c.len;
+        if (nr > limit) continue;
+        const nw = du + weight(ci);
+        if (nw < dw[v]) { dw[v] = nw; dr[v] = nr; via[v] = ci; h.push(nw, v); }
+      }
+    }
+    return { dw, dr, via };
+  }
+  const pathChains = (P, via, src, dst) => { const out = []; let v = dst; while (v !== src) { const ci = via[v]; out.push(ci); const c = P.ch[ci]; v = c.ja === v ? c.jb : c.ja; } return out.reverse(); };
+
+  function greedy(g, an, P, covered, targetM, tolM, rnd) {
+    const cov = covered.slice(), need = new Float64Array(P.ch.length);
+    P.ch.forEach((c, ci) => { let s = 0; for (const k of c.eids) if (an.required[k] && !cov[k]) s += an.elen[k]; need[ci] = s; });
+    const maxM = targetM + tolM * 0.6;
+    const home = dijkstra(P, P.s, ci => P.ch[ci].len, maxM / 2 + 2000);
+    const take = ci => { for (const k of P.ch[ci].eids) if (an.required[k] && !cov[k]) cov[k] = 1; need[ci] = 0; };
+    // a chain with undone street is cheaper to pass along, so connections also pick up new streets
+    const wgt = ci => P.ch[ci].len * (need[ci] > 0 ? 0.55 : 1);
+    let cur = P.s, used = 0, gain = 0; const seq = []; // [ci, fromJunction]
+    let Lmax = 0; for (const c of P.ch) Lmax = Math.max(Lmax, c.len);
+    let D_dw = null, D_dr = null;
+    for (let step = 0; step < 4000; step++) {
+      const left = maxM - used;
+      let best = null, bs = 0, D = null;
+      // candidates are checked as the search reaches them, so it can stop once nothing further away could win
+      D = dijkstra(P, cur, wgt, left, (u, du) => {
+        if (best && Lmax / (du + Lmax) < bs * 0.98) return true;
+        for (const ci of P.adj[u]) {
+          if (need[ci] <= 0) continue;
+          const c = P.ch[ci], v = c.ja === u ? c.jb : c.ja, back = home.dr[v];
+          if (back === Infinity || used + D_dr(u) + c.len + back > maxM) continue;
+          let sc = need[ci] / (D_dw(u) + c.len + 1);
+          if (rnd) sc *= 1 + rnd() * 0.35;
+          if (sc > bs) { bs = sc; best = { ci, u, v }; }
+        }
+        return false;
+      }, (dw, dr) => { D_dw = i => dw[i]; D_dr = i => dr[i]; });
+      if (!best) break;
+      for (const ci of pathChains(P, D.via, cur, best.u)) { gain += need[ci]; take(ci); seq.push([ci, cur]); cur = P.ch[ci].ja === cur ? P.ch[ci].jb : P.ch[ci].ja; used += P.ch[ci].len; }
+      gain += need[best.ci]; take(best.ci); seq.push([best.ci, cur]); cur = best.v; used += P.ch[best.ci].len;
+    }
+    // home: prefer a way back along undone streets if it still fits, else the shortest
+    if (cur !== P.s) {
+      let D = dijkstra(P, cur, wgt, Infinity, u => u === P.s);
+      if (used + D.dr[P.s] > maxM + tolM * 0.4) D = dijkstra(P, cur, ci => P.ch[ci].len, Infinity, u => u === P.s);
+      for (const ci of pathChains(P, D.via, cur, P.s)) { gain += need[ci]; take(ci); seq.push([ci, cur]); cur = P.ch[ci].ja === cur ? P.ch[ci].jb : P.ch[ci].ja; used += P.ch[ci].len; }
+    }
+    // expand to graph nodes
+    const path = [P.J[P.s]];
+    for (const [ci, fromJ] of seq) {
+      const c = P.ch[ci], nodes = P.J[fromJ] === c.a ? c.nodes : c.nodes.slice().reverse();
+      for (let i = 1; i < nodes.length; i++) path.push(nodes[i]);
+    }
+    return { path, length: used, gain, covered: cov };
+  }
+  // seeded random numbers so the same suburb and start plan the same way every time
+  const mulberry = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const tick = () => new Promise(r => setTimeout(r, 0));
+
+  /* plan one run: several greedy passes with a little randomness, keep the one with the most new street */
+  async function planRun(g, an, P, covered, targetM, tolM = 1000, trials = 10) {
+    let best = null;
+    for (let t = 0; t < trials; t++) {
+      const r = greedy(g, an, P, covered, targetM, tolM, t ? mulberry(t * 7919 + 17) : null);
+      const off = Math.max(0, Math.abs(r.length - targetM) - tolM);
+      r.score = r.gain - 0.5 * off;
+      if (!best || r.score > best.score) best = r;
+      await tick();
+    }
+    return best;
+  }
+  /* plan runs until the suburb is done or the rest is out of reach. onRun(run, index) after each one */
+  async function planAll(g, an, startNode, done, targetM, opts = {}) {
+    const P = prepare(g, an, startNode), maxRuns = opts.maxRuns || 60, out = [];
+    let covered = done.slice();
+    for (let i = 0; i < maxRuns; i++) {
+      const r = await planRun(g, an, P, covered, targetM, opts.tolM ?? 1000, opts.trials || 10);
+      if (!r || r.gain < Math.min(150, 0.03 * targetM)) break;
+      out.push(r); covered = r.covered;
+      if (opts.onRun) opts.onRun(r, i);
+      if (opts.cancelled && opts.cancelled()) break;
+    }
+    let left = 0; for (let k = 0; k < covered.length; k++) if (an.required[k] && !covered[k]) left += an.elen[k];
+    return { runs: out, leftM: left, covered };
+  }
+  /* Alternative planner, "route first, split second": one long tour over every undone street (always to the nearest
+     next one), then cut into loops from the start, choosing the cuts so the fewest loops fit the distance. */
+  function giantTour(P, an, covered, rnd) {
+    const cov = covered.slice(), need = new Float64Array(P.ch.length);
+    P.ch.forEach((c, ci) => { let s = 0; for (const k of c.eids) if (an.required[k] && !cov[k]) s += an.elen[k]; need[ci] = s; });
+    const T = []; // traversals: { ci, from, to, len, gain }
+    const go = (ci, from) => { const c = P.ch[ci], to = c.ja === from ? c.jb : c.ja; T.push({ ci, from, to, len: c.len, gain: need[ci] }); for (const k of c.eids) if (an.required[k]) cov[k] = 1; need[ci] = 0; return to; };
+    let cur = P.s;
+    for (;;) {
+      let best = null, bd = Infinity; const cands = [];
+      const D = dijkstra(P, cur, ci => P.ch[ci].len, Infinity, (u, du) => {
+        if (du > bd * (rnd ? 1.25 : 1) + 1) return true;
+        for (const ci of P.adj[u]) if (need[ci] > 0) { cands.push([ci, u, du]); if (du < bd) { bd = du; best = [ci, u]; } }
+        return false;
+      });
+      if (!best) break;
+      if (rnd && cands.length > 1) { const near = cands.filter(c => c[2] <= bd * 1.25 + 1); const pick = near[Math.floor(rnd() * near.length)]; best = [pick[0], pick[1]]; }
+      for (const ci of pathChains(P, D.via, cur, best[1])) cur = go(ci, cur);
+      cur = go(best[0], best[1]);
+    }
+    return T;
+  }
+  function splitTour(P, T, home, maxM, minM) {
+    const svc = []; T.forEach((t, i) => { if (t.gain > 0) svc.push(i); });
+    const cum = [0]; for (const t of T) cum.push(cum[cum.length - 1] + t.len);
+    const S = svc.length, runs = new Int32Array(S + 1).fill(1e9), tot = new Float64Array(S + 1).fill(Infinity), from = new Int32Array(S + 1).fill(-1);
+    runs[0] = 0; tot[0] = 0;
+    for (let a = 0; a < S; a++) {
+      if (runs[a] >= 1e9) continue;
+      const pa = svc[a], lead = home.dr[T[pa].from];
+      for (let b = a; b < S; b++) {
+        const pb = svc[b], cost = lead + cum[pb + 1] - cum[pa] + home.dr[T[pb].to];
+        if (cost > maxM && b > a) break;
+        // fewest loops first, then avoid loops well short of the distance (the last one may be short), then least running
+        const short = b === S - 1 ? 0 : Math.max(0, minM - cost), r = runs[a] + 1, t = tot[a] + cost + 3 * short;
+        if (r < runs[b + 1] || (r === runs[b + 1] && t < tot[b + 1])) { runs[b + 1] = r; tot[b + 1] = t; from[b + 1] = a; }
+      }
+    }
+    const cuts = []; for (let b = S; b > 0; b = from[b]) cuts.push([from[b], b - 1]);
+    return { count: runs[S], total: tot[S], cuts: cuts.reverse().map(([a, b]) => [svc[a], svc[b]]) };
+  }
+  async function planAllSplit(g, an, startNode, done, targetM, opts = {}) {
+    const P = prepare(g, an, startNode), maxM = targetM + (opts.tolM ?? 1000) * 0.6;
+    const home = dijkstra(P, P.s, ci => P.ch[ci].len, Infinity);
+    let best = null;
+    for (let t = 0; t < (opts.trials || 12); t++) {
+      const T = giantTour(P, an, done, t ? mulberry(t * 7919 + 17) : null), sp = splitTour(P, T, home, maxM, targetM - (opts.tolM ?? 1000));
+      if (!best || sp.count < best.sp.count || (sp.count === best.sp.count && sp.total < best.sp.total)) best = { T, sp };
+      await tick();
+    }
+    const { T, sp } = best, runs = [], cov = done.slice();
+    const legHome = (j, toHome) => { // chains between junction j and home, in travel order
+      const D = dijkstra(P, toHome ? j : P.s, ci => P.ch[ci].len, Infinity, u => u === (toHome ? P.s : j));
+      return pathChains(P, D.via, toHome ? j : P.s, toHome ? P.s : j);
+    };
+    for (const [pa, pb] of sp.cuts) {
+      const seq = []; let cur = P.s, used = 0, gain = 0;
+      const walk = ci => { const c = P.ch[ci]; seq.push([ci, cur]); cur = c.ja === cur ? c.jb : c.ja; used += c.len; for (const k of c.eids) if (an.required[k] && !cov[k]) { cov[k] = 1; gain += an.elen[k]; } };
+      for (const ci of legHome(T[pa].from, false)) walk(ci);
+      for (let i = pa; i <= pb; i++) walk(T[i].ci);
+      for (const ci of legHome(cur, true)) walk(ci);
+      const path = [P.J[P.s]];
+      for (const [ci, fromJ] of seq) { const c = P.ch[ci], nodes = P.J[fromJ] === c.a ? c.nodes : c.nodes.slice().reverse(); for (let i = 1; i < nodes.length; i++) path.push(nodes[i]); }
+      runs.push({ path, length: used, gain, covered: cov.slice() });
+      if (opts.onRun) opts.onRun(runs[runs.length - 1], runs.length - 1);
+    }
+    let left = 0; for (let k = 0; k < cov.length; k++) if (an.required[k] && !cov[k]) left += an.elen[k];
+    return { runs, leftM: left, covered: cov };
+  }
+  /* plan the rest of the suburb both ways and keep the plan with fewer loops (then less running) */
+  async function plan(g, an, startNode, done, targetM, opts = {}) {
+    const tolM = opts.tolM ?? 1000, prog = opts.onProgress || (() => {});
+    prog(0.05);
+    const a = await planAllSplit(g, an, startNode, done, targetM, { tolM, trials: 12 });
+    prog(0.25);
+    let i = 0;
+    const b = await planAll(g, an, startNode, done, targetM, { tolM, trials: 6, maxRuns: Math.max(a.runs.length + 2, 3), onRun: () => prog(0.25 + 0.75 * Math.min(1, ++i / (a.runs.length + 1))) });
+    const key = p => { let short = 0, tot = 0; p.runs.forEach((r, k) => { tot += r.length; if (k < p.runs.length - 1) short += Math.max(0, targetM - tolM - r.length); }); return [p.leftM > Math.max(300, 0.01 * an.total) ? 1 : 0, p.runs.length, tot + 3 * short]; };
+    const ka = key(a), kb = key(b);
+    const pick = (kb[0] < ka[0] || (kb[0] === ka[0] && (kb[1] < ka[1] || (kb[1] === ka[1] && kb[2] < ka[2])))) ? b : a;
+    prog(1);
+    return pick;
+  }
+  /* new street on a path (metres of counted segments not in done), for edited runs */
+  function newOnPath(g, an, path, done) {
+    const seen = new Set(); let m = 0, len = 0;
+    for (let i = 1; i < path.length; i++) {
+      const e = edgeOf(g, path[i - 1], path[i]);
+      const L = e >= 0 ? g.len[e] : Math.hypot(g.X[path[i]] - g.X[path[i - 1]], g.Y[path[i]] - g.Y[path[i - 1]]); len += L;
+      if (e < 0) continue; const k = g.eid[e];
+      if (an.required[k] && !done[k] && !seen.has(k)) { seen.add(k); m += an.elen[k]; }
+    }
+    return { newM: m, length: len, eids: seen };
+  }
+  return { plan, planAllSplit, inRings, chains, analyse, matchRuns, progress, prepare, planRun, planAll, newOnPath };
+})();
+if (typeof module !== "undefined") module.exports = EveryStreet;
+/*EVERY-END*/
 
 </script>
 <script>
@@ -2314,25 +2788,25 @@ if (typeof module !== "undefined") module.exports = StreetTiles;
     r.onupgradeneeded = () => r.result.createObjectStore("streets");
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
-  async function cacheGet(bb) {
+  async function cacheGet(bb, kind) {
     try {
       const db = await idb();
       const all = await new Promise(res => { const q = db.transaction("streets").objectStore("streets").getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); });
-      const hit = all.find(e => e.bb[0] <= bb[0] && e.bb[1] <= bb[1] && e.bb[2] >= bb[2] && e.bb[3] >= bb[3]);
+      const hit = all.find(e => (e.kind || "art") === (kind || "art") && e.bb[0] <= bb[0] && e.bb[1] <= bb[1] && e.bb[2] >= bb[2] && e.bb[3] >= bb[3]);
       return hit ? hit.elements : null;
     } catch (e) { return null; }
   }
-  async function cachePut(bb, elements) {
+  async function cachePut(bb, elements, kind) {
     try {
       const db = await idb(), st = db.transaction("streets", "readwrite").objectStore("streets");
       const keys = await new Promise(res => { const q = st.getAllKeys(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); });
       keys.sort().slice(0, Math.max(0, keys.length - 3)).forEach(k => st.delete(k)); // keep the 4 most recent areas
-      st.put({ bb, elements }, Date.now());
+      st.put(kind ? { bb, elements, kind } : { bb, elements }, Date.now());
     } catch (e) {}
   }
-  async function fetchOverpass(bb, onWait) {
+  async function fetchOverpass(bb, onWait, kind) {
     const q = `[out:json][timeout:90];
-way["highway"~"^(primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|pedestrian|footway|path|cycleway|track|road|service)$"]["access"!~"^(private|no)$"]["foot"!~"^(no|private)$"]["footway"!~"^(sidewalk|crossing)$"]["service"!~"^(parking_aisle|driveway|drive-through)$"]["area"!="yes"](${bb.join(",")});
+way["highway"~"^(primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|pedestrian|footway|path|cycleway|track|road|service)$"]["access"!~"^(private|no)$"]["foot"!~"^(no|private)$"]["footway"!~"^(sidewalk|crossing)$"]["service"!~"^(parking_aisle${kind === "every" ? "" : "|driveway"}|drive-through)$"]["area"!="yes"](${bb.join(",")});
 (._;>;);
 out skel qt;`;
     const t0 = Date.now(), ctrls = [], errors = [];
@@ -2362,7 +2836,7 @@ out skel qt;`;
   }
 
   /* main source: OpenFreeMap vector tiles (OpenStreetMap roads and paths, served from a fast CDN) */
-  async function fetchVectorStreets(lat, lon, radius, onProgress) {
+  async function fetchVectorStreets(lat, lon, radius, onProgress, kind) {
     const tj = await (await fetch("https://tiles.openfreemap.org/planet")).json();
     const tmpl = tj.tiles[0], r = StreetTiles.tileRange(lat, lon, radius), jobs = [];
     for (let x = r.x0; x <= r.x1; x++) for (let y = r.y0; y <= r.y1; y++) jobs.push({ x, y });
@@ -2382,21 +2856,23 @@ out skel qt;`;
     const queue = jobs.slice();
     await Promise.all(Array.from({ length: 8 }, async () => { while (queue.length) { await getTile(queue.shift()); onProgress(++done, jobs.length); } }));
     if (failed > jobs.length * 0.1) throw new Error(`${failed} of ${jobs.length} map tiles didn't download`);
-    return StreetTiles.toElements(jobs.filter(j => j.buf && j.buf.length));
+    const got = jobs.filter(j => j.buf && j.buf.length);
+    if (kind === "every") return StreetTiles.toElements(got, { every: true }).concat(StreetTiles.names(got));
+    return StreetTiles.toElements(got);
   }
 
-  async function fetchStreets(lat, lon, radius, onStatus) {
+  async function fetchStreets(lat, lon, radius, onStatus, kind) {
     const dLat = radius / 111320, dLon = radius / (111320 * Math.cos(lat * Math.PI / 180)), g = 0.005;
     const bb = [Math.floor((lat - dLat) / g) * g, Math.floor((lon - dLon) / g) * g, Math.ceil((lat + dLat) / g) * g, Math.ceil((lon + dLon) / g) * g].map(v => +v.toFixed(4));
-    const cached = await cacheGet(bb);
+    const cached = await cacheGet(bb, kind);
     if (cached) return cached;
     const problems = [];
     let elements = null;
     try {
-      elements = await fetchVectorStreets(lat, lon, radius, (d, n) => onStatus(`Downloading streets: ${d} of ${n} map tiles`, d / n));
+      elements = await fetchVectorStreets(lat, lon, radius, (d, n) => onStatus(`Downloading streets: ${d} of ${n} map tiles`, d / n), kind);
     } catch (e) {
       problems.push("map tiles: " + (e.name === "TypeError" ? "couldn't connect" : e.message));
-      try { elements = await fetchOverpass(bb, sec => onStatus(`Map tiles failed, trying backup servers… ${sec}s`, 0)); }
+      try { elements = await fetchOverpass(bb, sec => onStatus(`Map tiles failed, trying backup servers… ${sec}s`, 0), kind); }
       catch (e2) { problems.push(e2.message); }
     }
     if (!elements) {
@@ -2404,7 +2880,7 @@ out skel qt;`;
       throw new Error("Couldn't download street data (" + problems.join("; ") + "). Check your connection and try again in a few minutes.");
     }
     if (!elements.some(e => e.type === "way")) throw new Error("No runnable streets found in that circle.");
-    cachePut(bb, elements);
+    cachePut(bb, elements, kind);
     return elements;
   }
 
@@ -2515,14 +2991,16 @@ out skel qt;`;
       pin = L.marker([lat, lon], { draggable: true, title: "Start and finish (drag to move)", icon: L.divIcon({ className: "sfpin", html: "S/F", iconSize: [34, 34] }), zIndexOffset: 1000 }).addTo(map);
       pin.on("dragend", e => { const ll = e.target.getLatLng(); setStart(ll.lat, ll.lng); });
     } else pin.setLatLng([lat, lon]);
-    if (!startInside()) setArea(lat, lon); // keep the pin inside the running area
+    if (state.mode !== "every" && !startInside()) setArea(lat, lon); // keep the pin inside the running area
     $("startText").textContent = "Pinned: " + state.start.label.split(",").slice(0, 2).join(",");
     $("startInfo").hidden = false;
     circleInfo(); persist();
+    if (state.onStart) state.onStart();
   }
   function clearStart() {
     state.start = null; if (pin) { map.removeLayer(pin); pin = null; }
     $("startInfo").hidden = true; $("start").value = ""; circleInfo(); persist();
+    if (state.onStart) state.onStart();
   }
   async function startFromText() {
     const q = $("start").value.trim(); if (!q) return;
@@ -2551,6 +3029,7 @@ out skel qt;`;
     try {
       const hit = await geocode(q);
       if (!hit) { setStatus(`Couldn't find "${q}".`); return; }
+      if (state.mode === "every") { map.setView([hit.lat, hit.lon], 15); return; }
       setArea(hit.lat, hit.lon);
       if (fewFit()) sizeForDistance();
       map.fitBounds(circle.getBounds(), { padding: [30, 30] });
@@ -2587,7 +3066,7 @@ out skel qt;`;
       L.marker([0, 0], { icon: L.divIcon({ className: "dir-arrow", html, iconSize: [24, 24], iconAnchor: [12, 12] }), interactive: false, keyboard: false })
         .setLatLng(L.CRS.EPSG3857.pointToLatLng(L.point(p.x / W * 256, p.y / W * 256), 0)).addTo(routeLayer);
     }
-    if (!keepView) map.fitBounds(L.latLngBounds(r.latlng).extend(circle.getBounds()), { padding: [30, 30] });
+    if (!keepView) map.fitBounds(L.latLngBounds(r.latlng).extend(r.fitTo || circle.getBounds()), { padding: [30, 30] });
     syncEditBar(); updateElevPanel(r);
   }
   state.showOnMap = showOnMap;
@@ -2681,6 +3160,12 @@ out skel qt;`;
   }
   const joinSegs = segs => segs.reduce((out, sg, i) => out.concat(i ? sg.slice(1) : sg), []);
   function applyPath(r, path) {
+    if (r.every) { // Every street run: no shape to match, just distance and new street
+      const m = r.every.measure(path);
+      r.path = path; r.latlng = path.map(i => [r.g.LAT[i], r.g.LON[i]]); r.length = m.length;
+      r.edited = !(r.origPath && r.origPath.length === path.length && r.origPath.every((v, i) => v === path[i]));
+      r.elev = undefined; return;
+    }
     const g = r.g, sc = RouteArt.scorePath(g, path, r.outline, r.o.P);
     r.path = path; r.latlng = path.map(i => [g.LAT[i], g.LON[i]]);
     r.length = sc.length; r.reuse = sc.reuse; r.sim = sc.sim;
@@ -2692,8 +3177,8 @@ out skel qt;`;
   }
   async function commitEdit(r) {
     showOnMap(r, true);
-    if (state.elevOn) await measureElevation(r);
-    await showPage();
+    if (state.elevOn && !r.every) await measureElevation(r);
+    if (r.every) r.every.refresh(); else await showPage();
     syncEditBar();
   }
   // edit bar on the map
@@ -2782,7 +3267,7 @@ out skel qt;`;
     d.cand = { anchors, segs };
     const lls = joinSegs(segs).map(i => [g.LAT[i], g.LON[i]]);
     haloLine.setLatLngs(lls); routeLine.setLatLngs(lls);
-    const km = RouteArt.scorePath(g, joinSegs(segs), r.outline, r.o.P).length / 1000;
+    const km = (r.every ? r.every.measure(joinSegs(segs)).length : RouteArt.scorePath(g, joinSegs(segs), r.outline, r.o.P).length) / 1000;
     $("ebKm").textContent = `${km.toFixed(1)} km`;
   }
   mapEl.addEventListener("pointermove", e => {
@@ -2829,6 +3314,7 @@ out skel qt;`;
     circle.setStyle({ color: acc, fillColor: acc });
     routeLayer.eachLayer(l => { if (l.options.weight === 5) l.setStyle({ color: acc }); });
     if (state.results && state.results.length) showPage();
+    if (state.onTheme) state.onTheme();
   });
   markTab();
 
@@ -2938,6 +3424,7 @@ out skel qt;`;
   /* ---------- search ---------- */
   $("form").addEventListener("submit", async ev => {
     ev.preventDefault();
+    if (state.mode === "every") return; // Enter in a field while in Every street mode
     const targetKm = +dist.value, targetM = targetKm * 1000;
     try { localStorage.setItem("raf-form", JSON.stringify({ d: targetKm })); } catch (e) {}
     if (!state.enabled.size) { setStatus("No shapes selected. Pick at least one in the shape list."); document.querySelector(".library").scrollIntoView({ behavior: "smooth" }); return; }
@@ -3226,6 +3713,514 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     ctx.font = "400 15px 'JetBrains Mono', monospace"; ctx.fillStyle = MUTED;
     ctx.fillText(noTiles ? "© OpenStreetMap contributors" : "Tiles © Esri · Data © OpenStreetMap contributors", S - 14, S - band - 12);
   }
+
+  /* =====================================================================================
+     Every street: pick a suburb, plan loops from the start that cover its streets, tick them off.
+     Progress is saved per suburb in localStorage ("raf-every") as the runs themselves (lat/lon lines),
+     so it is matched back onto fresh street data each time instead of relying on segment ids.
+     ===================================================================================== */
+  const ES_KEY = "raf-every";
+  const es = { data: { v: 1, current: null, suburbs: {} }, key: null, sub: null, g: null, proj: null, an: null, done: null, prog: null, plan: [], page: 0, loadId: 0 };
+  try { const v = JSON.parse(localStorage.getItem(ES_KEY) || "null"); if (v && v.suburbs && typeof v.suburbs === "object") es.data = v; } catch (e) {}
+  const esSave = () => {
+    try { localStorage.setItem(ES_KEY, JSON.stringify(es.data)); return true; }
+    catch (e) { setStatus("Couldn't save progress in this browser (storage is full or blocked). Use Export backup to keep a copy."); return false; }
+  };
+  /* runs are stored as encoded polylines (5 decimal places, about 1 m) */
+  const PL = {
+    enc(pts) {
+      let out = "", pa = 0, po = 0;
+      const put = v => { v = v < 0 ? ~(v * 2) : v * 2; while (v >= 0x20) { out += String.fromCharCode((0x20 | (v & 0x1f)) + 63); v >>>= 5; } out += String.fromCharCode(v + 63); };
+      for (const [la, lo] of pts) { const a = Math.round(la * 1e5), o = Math.round(lo * 1e5); put(a - pa); put(o - po); pa = a; po = o; }
+      return out;
+    },
+    dec(s) {
+      const pts = []; let i = 0, la = 0, lo = 0;
+      const get = () => { let r = 0, sh = 0, b; do { b = s.charCodeAt(i++) - 63; r |= (b & 0x1f) << sh; sh += 5; } while (b >= 0x20 && i < s.length); return r & 1 ? ~(r >> 1) : r >> 1; };
+      while (i < s.length) { la += get(); lo += get(); pts.push([la / 1e5, lo / 1e5]); }
+      return pts;
+    },
+  };
+  const km1 = m => (m / 1000).toFixed(1);
+  const today = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local time
+  const niceDate = d => { const t = new Date(d + "T12:00:00"); return isNaN(t) ? d : t.toLocaleDateString(undefined, { day: "numeric", month: "short", year: t.getFullYear() === new Date().getFullYear() ? undefined : "numeric" }); };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  /* ---------- map layers: suburb outline, streets to run (grey) and done (accent), under the route ---------- */
+  map.createPane("esPane").style.zIndex = 390;
+  const esRenderer = L.canvas({ pane: "esPane", padding: 0.4 });
+  const esLayer = L.layerGroup();
+  function drawProgressLayer() {
+    esLayer.clearLayers();
+    if (!es.sub) return;
+    const ink = themeColour("--map-ink"), acc = themeColour("--accent"), muted = themeColour("--map-muted");
+    if (es.g) {
+      const g = es.g, an = es.an, todo = [], done = [];
+      for (const c of an.chains) {
+        let cur = null, st = -1;
+        for (let i = 0; i < c.eids.length; i++) {
+          const k = c.eids[i];
+          if (!an.required[k]) { cur = null; st = -1; continue; }
+          const s = es.done[k] ? 1 : 0, a = c.nodes[i], b = c.nodes[i + 1];
+          if (!cur || s !== st) { cur = [[g.LAT[a], g.LON[a]]]; (s ? done : todo).push(cur); st = s; }
+          cur.push([g.LAT[b], g.LON[b]]);
+        }
+      }
+      if (todo.length) L.polyline(todo, { pane: "esPane", renderer: esRenderer, color: muted, opacity: 0.55, weight: 3, interactive: false }).addTo(esLayer);
+      if (done.length) L.polyline(done, { pane: "esPane", renderer: esRenderer, color: acc, opacity: 0.9, weight: 4, interactive: false }).addTo(esLayer);
+    }
+    L.polygon(es.sub.rings, { pane: "esPane", renderer: esRenderer, color: ink, weight: 2.5, dashArray: "7 6", fill: false, interactive: false }).addTo(esLayer);
+  }
+
+  /* ---------- fixed image frame per suburb (so saved images line up) ---------- */
+  function suburbGeometry(sub) {
+    let s = Infinity, n = -Infinity, w = Infinity, e = -Infinity;
+    for (const ring of sub.rings) for (const [la, lo] of ring) { s = Math.min(s, la); n = Math.max(n, la); w = Math.min(w, lo); e = Math.max(e, lo); }
+    const [x0, y1] = merc(s, w), [x1, y0] = merc(n, e);
+    es.frame = { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, span: Math.max(x1 - x0, y1 - y0) * 1.14 };
+    es.bounds = L.latLngBounds([s, w], [n, e]);
+    es.bbox = { s, n, w, e, lat: (s + n) / 2, lon: (w + e) / 2 };
+  }
+
+  /* ---------- suburb search (Nominatim boundary polygons) ---------- */
+  async function suburbLookup(q) {
+    const c = map.getCenter();
+    const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&polygon_geojson=1&polygon_threshold=0.00001"
+      + `&viewbox=${c.lng - 0.6},${c.lat + 0.6},${c.lng + 0.6},${c.lat - 0.6}&q=` + encodeURIComponent(q);
+    let lastErr = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error("status " + r.status);
+        const all = (await r.json()).filter(h => h.geojson && /Polygon$/.test(h.geojson.type));
+        const seen = new Set(), uniq = all.filter(h => { const k = h.osm_type + h.osm_id; if (seen.has(k)) return false; seen.add(k); return true; });
+        const areas = uniq.filter(h => h.category === "boundary" || h.category === "place");
+        return areas.length ? areas : uniq;
+      } catch (e) {
+        lastErr = e;
+        if (e instanceof TypeError && attempt === 1) { netBlocked(); throw new Error("Suburb search couldn't connect to the internet. See the note above the map."); }
+        await sleep(1200 * (attempt + 1)); // the free search service allows about one request a second
+      }
+    }
+    throw new Error("The suburb search didn't answer (" + (lastErr ? lastErr.message : "no reply") + "). Try again in a minute.");
+  }
+  const placeLabel = h => { const p = h.display_name.split(",").map(s => s.trim()); return p.filter(x => !/^\d{4,}$/.test(x)).slice(0, 4).join(", "); };
+  async function findSuburb() {
+    const q = $("esSub").value.trim(); if (!q) { $("esSub").focus(); return; }
+    $("esChoices").hidden = true; setStatus(`Looking up ${q}…`, 0);
+    try {
+      const hits = await suburbLookup(q);
+      if (!hits.length) { setStatus(`No suburb boundary found for "${q}". Try adding the state, like "Annandale NSW".`); return; }
+      if (hits.length === 1) { chooseSuburb(hits[0]); return; }
+      const box = $("esChoices"); box.innerHTML = `<span class="hint">Which one?</span>`;
+      for (const h of hits.slice(0, 6)) {
+        const b = document.createElement("button"); b.type = "button";
+        b.innerHTML = `<strong>${esc(h.name || h.display_name.split(",")[0])}</strong> <span>${esc(placeLabel(h).split(", ").slice(1).join(", "))}${h.addresstype ? " · " + esc(h.addresstype.replace(/_/g, " ")) : ""}</span>`;
+        b.onclick = () => { box.hidden = true; chooseSuburb(h); };
+        box.appendChild(b);
+      }
+      box.hidden = false; setStatus(`${hits.length} places match "${q}". Pick one.`);
+    } catch (e) { setStatus(e.message); }
+  }
+  function chooseSuburb(h) {
+    const key = h.osm_type[0].toUpperCase() + h.osm_id;
+    const polys = h.geojson.type === "Polygon" ? [h.geojson.coordinates] : h.geojson.coordinates;
+    const rings = polys.flat().map(ring => ring.map(([lo, la]) => [+la.toFixed(6), +lo.toFixed(6)]));
+    const old = es.data.suburbs[key];
+    es.data.suburbs[key] = { ...(old || { runs: [] }), name: h.name || h.display_name.split(",")[0], full: placeLabel(h), rings };
+    es.data.current = key; esSave();
+    $("esSub").value = "";
+    openSuburb(key);
+  }
+
+  /* ---------- open a suburb: outline right away, then its streets ---------- */
+  async function openSuburb(key) {
+    const sub = es.data.suburbs[key]; if (!sub) return;
+    es.key = key; es.sub = sub; es.g = null; es.an = null; es.done = null; es.prog = null; es.plan = []; es.page = 0;
+    suburbGeometry(sub);
+    routeLayer.clearLayers(); mapRoute = null; editBar.hidden = true; updateElevPanel(null);
+    drawProgressLayer();
+    if (state.mode === "every") map.fitBounds(es.bounds, { padding: [30, 30] });
+    renderSuburb(); renderCards(); renderLog();
+    await loadStreets();
+  }
+  const covers = ll => es.cover && map.distance([es.cover.lat, es.cover.lon], [ll.lat, ll.lon]) < es.cover.radius - 250;
+  async function loadStreets() {
+    const sub = es.sub, id = ++es.loadId; if (!sub) return false;
+    const b = es.bbox;
+    // the suburb plus a margin, so runs can link through streets just outside it; take in the start pin if it's near
+    let s = b.s, n = b.n, w = b.w, e = b.e;
+    if (state.start && pinReach() <= PIN_MAX) {
+      s = Math.min(s, state.start.lat); n = Math.max(n, state.start.lat); w = Math.min(w, state.start.lon); e = Math.max(e, state.start.lon);
+    }
+    const lat = (s + n) / 2, lon = (w + e) / 2, radius = Math.max((n - s) / 2 * 111320, (e - w) / 2 * 111320 * Math.cos(lat * Math.PI / 180)) + 600;
+    if (radius > 10000) { setStatus(`${sub.name} is too big to plan in one go (${km1(radius * 2)} km across). Try a smaller suburb.`, 0); return false; }
+    $("esPlan").disabled = true;
+    try {
+      setStatus(`Downloading streets for ${sub.name}…`, 0.05);
+      const els = await fetchStreets(lat, lon, radius, (msg, f) => { if (id === es.loadId) setStatus(msg, 0.05 + 0.6 * f); }, "every");
+      if (id !== es.loadId) return false;
+      setStatus("Building the street network…", 0.7); await sleep(20);
+      const proj = RouteArt.makeProjection(b.lat, b.lon), g = RouteArt.buildGraph(els, proj);
+      const rings = sub.rings.map(r => r.map(([la, lo]) => proj.toXY(la, lo)));
+      const names = els.filter(x => x.type === "name").map(x => ({ name: x.name, xy: x.ll.map(([la, lo]) => proj.toXY(la, lo)) }));
+      setStatus("Finding the streets inside the suburb…", 0.85); await sleep(20);
+      const an = EveryStreet.analyse(g, rings, names);
+      if (id !== es.loadId) return false;
+      Object.assign(es, { g, proj, an, cover: { lat, lon, radius } });
+      for (const r of es.plan) { r.g = g; r.proj = proj; }
+      recomputeDone();
+      drawProgressLayer(); renderSuburb(); renderCards();
+      if (!an.total) setStatus(`No runnable streets found inside ${sub.name}.`, 1);
+      else if (es.prog.frac >= 0.995) setStatus(`${sub.name} is finished: every street is done. Type the next suburb above.`, 1);
+      else if (es.prog.done > 0) setStatus(`${sub.name}: ${Math.floor(es.prog.frac * 100)}% done, ${km1(es.prog.total - es.prog.done)} km of street to go. Press Plan runs for the next loops.`, 1);
+      else setStatus(`${sub.name}: ${km1(an.total)} km of streets, lanes and paths to cover. ${state.start ? "Press Plan runs." : "Set your start pin, then press Plan runs."}`, 1);
+      return true;
+    } catch (err) {
+      if (id === es.loadId) setStatus(err.message || String(err), 0);
+      console.error(err); return false;
+    } finally { if (id === es.loadId) $("esPlan").disabled = false; }
+  }
+  function recomputeDone() {
+    if (!es.g) return;
+    const runs = es.sub.runs.map(x => PL.dec(x.pts).map(([la, lo]) => es.proj.toXY(la, lo)));
+    es.done = EveryStreet.matchRuns(es.g, es.an, runs);
+    es.prog = EveryStreet.progress(es.an, es.done);
+    Object.assign(es.sub, { pct: Math.floor(es.prog.frac * 100), doneKm: +km1(es.prog.done), totalKm: +km1(es.prog.total) });
+    esSave();
+  }
+
+  /* ---------- sidebar: suburb line, saved suburbs, progress ---------- */
+  function renderSuburb() {
+    const sub = es.sub;
+    $("esSubInfo").hidden = !sub;
+    if (sub) $("esSubText").textContent = sub.full || sub.name;
+    // other suburbs you've started, to switch between
+    const keys = Object.keys(es.data.suburbs), box = $("esSaved");
+    box.hidden = keys.length < 2 && !!sub;
+    box.innerHTML = keys.length ? `<span class="lbl">Your suburbs</span>` : "";
+    for (const k of keys) {
+      const s = es.data.suburbs[k], w = document.createElement("span"); w.className = "essub";
+      const b = document.createElement("button"); b.type = "button";
+      b.setAttribute("aria-pressed", String(k === es.key));
+      b.innerHTML = `${esc(s.name)} <small>${s.pct != null ? s.pct + "%" : ""}</small>`;
+      b.onclick = () => { if (k === es.key) return; es.data.current = k; esSave(); openSuburb(k); };
+      const del = document.createElement("button"); del.type = "button"; del.className = "esdel"; del.textContent = "×";
+      del.title = `Remove ${s.name} and its progress`; del.setAttribute("aria-label", del.title);
+      del.onclick = () => {
+        if (!del.classList.contains("armed")) { del.classList.add("armed"); del.textContent = "Remove?"; clearTimeout(del._t); del._t = setTimeout(() => { del.classList.remove("armed"); del.textContent = "×"; }, 3000); return; }
+        delete es.data.suburbs[k];
+        if (k === es.key) { es.data.current = Object.keys(es.data.suburbs)[0] || null; esSave(); if (es.data.current) openSuburb(es.data.current); else closeSuburb(); }
+        else { esSave(); renderSuburb(); }
+      };
+      w.append(b, del); box.appendChild(w);
+    }
+    const p = es.prog, on = !!(sub && p);
+    $("esProg").hidden = !sub;
+    $("esPct").textContent = on ? Math.floor(p.frac * 100) : "–";
+    $("esBarFill").style.width = on ? (p.frac * 100).toFixed(1) + "%" : "0";
+    $("esLine").innerHTML = on ? `${p.streets ? `<strong>${p.streetsDone}</strong> of <strong>${p.streets}</strong> streets · ` : ""}<strong>${km1(p.done)}</strong> of <strong>${km1(p.total)}</strong> km` : sub ? "Loading streets…" : "";
+    $("esImg").disabled = !on;
+    $("esFoot").innerHTML = sub ? `<span class="eslegend"><i class="sw done"></i>Done <i class="sw todo"></i>To run <i class="sw edge"></i>${esc(sub.name)} boundary</span>${on ? `<span><strong>${Math.floor(p.frac * 100)}%</strong> · ${km1(p.done)} of ${km1(p.total)} km</span>` : ""}` : "Type a suburb in the panel to see its streets here.";
+  }
+  function closeSuburb() {
+    es.loadId++; Object.assign(es, { key: null, sub: null, g: null, an: null, done: null, prog: null, plan: [], cover: null });
+    esLayer.clearLayers(); routeLayer.clearLayers(); mapRoute = null; editBar.hidden = true; updateElevPanel(null);
+    renderSuburb(); renderCards(); renderLog();
+  }
+
+  /* ---------- planning ---------- */
+  /* runs always start and finish at the start pin, even when it's outside the suburb (the streets between get repeated) */
+  const PIN_MAX = 8000; // furthest the pin can be from the suburb's edge
+  function pinReach() { // metres from the pin to the nearest corner of the suburb's box (0 when inside it)
+    const b = es.bbox, p = state.start;
+    const la = Math.max(b.s, Math.min(b.n, p.lat)), lo = Math.max(b.w, Math.min(b.e, p.lon));
+    return map.distance([la, lo], [p.lat, p.lon]);
+  }
+  function startNode() {
+    const [x, y] = es.proj.toXY(state.start.lat, state.start.lon);
+    return RouteArt.nearestNode(es.g, x, y, 400);
+  }
+  async function planRuns() {
+    if (!es.sub) { setStatus("Type a suburb first, then press Load."); $("esSub").focus(); return; }
+    if (!state.start) { setStatus("Set your start pin first: type an address or tap the map. Every run starts and finishes there."); $("start").focus(); return; }
+    const reach = pinReach(), targetM = +dist.value * 1000;
+    if (reach > PIN_MAX) { setStatus(`Your start pin is ${km1(reach)} km from ${es.sub.name}. Move it closer (within ${PIN_MAX / 1000} km) to plan runs here.`); return; }
+    if (reach > targetM / 2 - 300) { setStatus(`Your start pin is ${km1(reach)} km from ${es.sub.name}, too far to get there and back in ${dist.value} km. Pick a longer distance or move the pin.`); return; }
+    if (es.g && !covers(state.start)) es.g = null; // the pin moved outside the loaded streets
+    if (!es.g && !(await loadStreets())) return;
+    if (es.prog.frac >= 0.995) { setStatus(`${es.sub.name} is finished. Type the next suburb above.`); return; }
+    const st = { n: startNode() };
+    if (st.n < 0) { setStatus("There's no runnable street within 400 m of your start pin. Move it onto a street."); return; }
+    try { localStorage.setItem("raf-form", JSON.stringify({ d: +dist.value })); } catch (e) {}
+    $("esPlan").disabled = true; routeLayer.clearLayers(); mapRoute = null; editBar.hidden = true; updateElevPanel(null);
+    try {
+      setStatus("Planning runs…", 0.02); await sleep(20);
+      const res = await EveryStreet.plan(es.g, es.an, st.n, es.done, targetM, { onProgress: f => setStatus(`Planning runs… ${Math.round(f * 100)}%`, f) });
+      es.plan = res.runs.map((p, i) => makeRun(p, i));
+      es.planLeft = res.leftM; es.page = 0; es.planKm = +dist.value;
+      refreshNew();
+      const total = es.plan.reduce((s, r) => s + r.length, 0);
+      const pinNote = reach > 50 ? ` All start and finish at your pin, ${km1(reach)} km outside ${es.sub.name}.` : "";
+      setStatus(es.plan.length ? `Planned ${es.plan.length} run${es.plan.length > 1 ? "s" : ""}, ${km1(total)} km in all.${pinNote}` : "Nothing left that a run from here can reach.", 1);
+      renderCards();
+      if (es.plan[0]) { showOnMap(es.plan[0]); }
+    } catch (err) { setStatus(err.message || String(err), 0); console.error(err); }
+    finally { $("esPlan").disabled = false; }
+  }
+  const measure = path => EveryStreet.newOnPath(es.g, es.an, path, es.done);
+  function makeRun(p, i) {
+    const g = es.g;
+    return {
+      shape: `${es.sub.name} run ${i + 1}`, label: `Run ${i + 1}`, path: p.path, latlng: p.path.map(n => [g.LAT[n], g.LON[n]]), length: p.length,
+      g, proj: es.proj, fitTo: es.bounds,
+      every: { newM: p.gain, mark: null, measure: path => measure(path), refresh: () => { refreshNew(); renderCards(); } },
+    };
+  }
+  /* new street per planned run, counting each street once: streets done or on an earlier unticked run don't count again */
+  function refreshNew() {
+    if (!es.g) return;
+    const cov = es.done.slice();
+    for (const r of es.plan) {
+      if (r.every.mark) continue;
+      const m = EveryStreet.newOnPath(es.g, es.an, r.path, cov);
+      r.every.newM = m.newM; for (const k of m.eids) cov[k] = 1;
+    }
+  }
+
+  /* ---------- tick off a run ---------- */
+  function markRun(r) {
+    if (!es.g) return;
+    const newM = measure(r.path).newM;
+    const rec = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date: today(), km: +(r.length / 1000).toFixed(2), newKm: +(newM / 1000).toFixed(2), pts: PL.enc(r.latlng) };
+    es.sub.runs.push(rec);
+    if (!esSave()) { es.sub.runs.pop(); return; }
+    r.every.mark = rec.id; r.every.newM = newM;
+    const before = es.prog.done;
+    recomputeDone(); drawProgressLayer(); refreshNew(); renderSuburb(); renderCards(); renderLog();
+    setStatus(`Ticked off: ${km1(es.prog.done - before)} km of new street. ${Math.floor(es.prog.frac * 100)}% of ${es.sub.name} done.`, 1);
+    if (es.prog.frac >= 0.995) setStatus(`That finishes ${es.sub.name}! Type the next suburb above to keep going.`, 1);
+  }
+  function unmarkRun(id) {
+    es.sub.runs = es.sub.runs.filter(x => x.id !== id); esSave();
+    for (const r of es.plan) if (r.every.mark === id) r.every.mark = null;
+    if (es.g) { recomputeDone(); drawProgressLayer(); refreshNew(); }
+    renderSuburb(); renderCards(); renderLog();
+  }
+
+  /* ---------- planned run cards ---------- */
+  const PER = 6;
+  function renderCards() {
+    const wrap = $("esCards"), list = es.plan, n = list.length, empty = $("esEmpty");
+    $("esSummary").textContent = n ? `${n} loop${n > 1 ? "s" : ""} of about ${es.planKm} km from your start${es.planLeft > 50 ? `, then ${es.planLeft >= 1000 ? km1(es.planLeft) + " km" : Math.round(es.planLeft / 10) * 10 + " m"} of scattered bits for later` : ""}. To change one, show it on the map and drag the line. Tick each one off when you've run it.` : "";
+    empty.hidden = n > 0;
+    if (!n) {
+      wrap.innerHTML = ""; $("esMore").hidden = true;
+      empty.innerHTML = !es.sub ? `<strong>No suburb yet.</strong> Type a suburb in the panel and press <strong>Load</strong>. Its boundary and streets appear on the map.`
+        : es.prog && es.prog.frac >= 0.995 ? `<strong>${esc(es.sub.name)} is finished.</strong> Every counted street is done. Type the next suburb in the panel to keep going.`
+        : `<strong>No runs planned yet.</strong> Set a distance and your start, then press <strong>Plan runs</strong>. Each run is a loop from your start that covers as many streets you haven't done as it can.`;
+      return;
+    }
+    if (es.page * PER >= n) es.page = 0;
+    const slice = list.slice(es.page * PER, es.page * PER + PER), left = n - (es.page + 1) * PER;
+    $("esMore").hidden = n <= PER; $("esMore").textContent = left <= 0 ? `Back to the first ${PER}` : `Show ${Math.min(PER, left)} more`;
+    wrap.innerHTML = "";
+    for (const r of slice) {
+      const card = document.createElement("article"); card.className = "card escard";
+      const rec = r.every.mark ? es.sub.runs.find(x => x.id === r.every.mark) : null;
+      const km = km1(r.length), pct = Math.round(r.every.newM / Math.max(1, r.length) * 100);
+      card.innerHTML = `<canvas width="1000" height="1000" role="img" aria-label="${esc(r.label)}, ${km} km"></canvas>
+        <div class="body">
+          <h3>${esc(r.label)}${r.edited ? `<em class="ed">edited</em>` : ""}${rec ? `<em class="ok">done ${esc(niceDate(rec.date))}</em>` : ""}</h3>
+          <dl class="stats">
+            <div><dt>Distance</dt><dd>${km}<small>km</small></dd></div>
+            <div><dt>New street</dt><dd>${km1(r.every.newM)}<small>km</small></dd></div>
+            <div><dt>New</dt><dd>${pct}<small>%</small></dd></div>
+          </dl>
+          <div class="actions">
+            <button type="button" data-a="mark" aria-pressed="${!!rec}">${rec ? "Done · undo" : "Mark as run"}</button>
+            <button type="button" data-a="reverse" aria-pressed="${!!r.reversed}">Reverse direction</button>
+            <button type="button" data-a="png">Save image</button>
+            <button type="button" data-a="gpx">Download GPX</button>
+            <button type="button" data-a="watch">Watch code</button>
+            <button type="button" data-a="map">Show on map</button>
+          </div>
+        </div>`;
+      wrap.appendChild(card);
+      const cv = card.querySelector("canvas"), redraw = () => drawEvery(cv, r, false);
+      redraw();
+      const toMap = () => { showOnMap(r); document.querySelector(".where").scrollIntoView({ behavior: "smooth" }); };
+      card.querySelector("[data-a=map]").onclick = toMap;
+      cv.onclick = toMap; cv.tabIndex = 0; cv.title = "Show on map";
+      cv.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toMap(); } };
+      card.querySelector("[data-a=mark]").onclick = () => { if (r.every.mark) unmarkRun(r.every.mark); else markRun(r); };
+      card.querySelector("[data-a=reverse]").onclick = ev => { reverseRoute(r); ev.currentTarget.setAttribute("aria-pressed", String(!!r.reversed)); redraw(); if (mapRoute === r) showOnMap(r, true); };
+      card.querySelector("[data-a=gpx]").onclick = () => saveBlob(new Blob([gpx(r)], { type: "application/gpx+xml" }), fileName(r, "gpx"));
+      card.querySelector("[data-a=watch]").onclick = () => showWatchCode(r);
+      card.querySelector("[data-a=png]").onclick = () => saveCanvas(c => drawEvery(c, r, true), fileName(r, "png"));
+    }
+  }
+  $("esMore").onclick = () => { es.page++; renderCards(); };
+  async function saveCanvas(draw, name) {
+    const c = document.createElement("canvas"); c.width = c.height = 1000;
+    const out = () => new Promise(res => c.toBlob(res));
+    let blob = null;
+    try { await draw(c); blob = await out(); } catch (e) { blob = null; }
+    if (!blob) { try { await draw(c, true); blob = await out(); } catch (e) {} }
+    if (blob) saveBlob(blob, name); else setStatus("Couldn't save that image.");
+  }
+
+  /* ---------- runs you've done ---------- */
+  function renderLog() {
+    const sec = $("esLogSec"), list = es.sub ? es.sub.runs.slice().reverse() : [];
+    sec.hidden = !list.length;
+    if (!list.length) return;
+    const tot = list.reduce((s, x) => s + x.km, 0);
+    $("esLogSum").textContent = `${list.length} run${list.length > 1 ? "s" : ""}, ${tot.toFixed(1)} km in ${es.sub.name}`;
+    const ol = $("esLog"); ol.innerHTML = "";
+    for (const x of list) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="d">${esc(niceDate(x.date))}</span><span class="k"><strong>${x.km.toFixed(1)} km</strong> · ${x.newKm.toFixed(1)} km new</span>`;
+      const b = document.createElement("button"); b.type = "button"; b.textContent = "Remove";
+      b.onclick = () => {
+        if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Remove this run?"; clearTimeout(b._t); b._t = setTimeout(() => { b.classList.remove("armed"); b.textContent = "Remove"; }, 3000); return; }
+        unmarkRun(x.id);
+      };
+      li.appendChild(b); ol.appendChild(li);
+    }
+  }
+
+  /* ---------- images: progress map and runs, same frame for a suburb ---------- */
+  async function drawEvery(cv, r, save, noTiles = false) {
+    const S = cv.width, band = save ? 92 : 0, H = S - band, ctx = cv.getContext("2d");
+    const ACC = themeColour("--accent"), INK = themeColour("--map-ink"), MUTED = themeColour("--map-muted"), HALO = themeColour("--map-halo"), BG = themeColour("--map-bg");
+    const F = es.frame, world = H / F.span, zf = Math.log2(world / 256), C = [S / 2, H / 2];
+    const cxW = F.cx * world, cyW = F.cy * world;
+    const P = (la, lo) => { const [x, y] = merc(la, lo); return [C[0] + x * world - cxW, C[1] + y * world - cyW]; };
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, S, H); ctx.clip();
+    ctx.fillStyle = BG; ctx.fillRect(0, 0, S, H);
+    if (!noTiles) {
+      const tz = Math.max(0, Math.min(16, Math.round(zf))), span = 256 * 2 ** (zf - tz), jobs = [];
+      for (let tx = Math.floor((cxW - C[0]) / span); tx <= Math.floor((cxW + C[0]) / span); tx++)
+        for (let ty = Math.floor((cyW - C[1]) / span); ty <= Math.floor((cyW + C[1]) / span); ty++)
+          jobs.push(tile(`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/${tz}/${ty}/${tx}`).then(img => ({ img, tx, ty })));
+      for (const { img, tx, ty } of await Promise.all(jobs)) if (img) ctx.drawImage(img, C[0] + tx * span - cxW, C[1] + ty * span - cyW, span + 0.5, span + 0.5);
+      ctx.fillStyle = "rgba(255,255,255,0.08)"; ctx.fillRect(0, 0, S, H);
+    }
+    ctx.lineJoin = ctx.lineCap = "round";
+    const seg = (k) => { const a = es.an.ea[k], b = es.an.eb[k], [x0, y0] = P(es.g.LAT[a], es.g.LON[a]), [x1, y1] = P(es.g.LAT[b], es.g.LON[b]); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); };
+    if (es.g) {
+      const req = es.an.required, done = es.done;
+      ctx.beginPath(); for (let k = 0; k < req.length; k++) if (req[k] && !done[k]) seg(k);
+      ctx.strokeStyle = MUTED; ctx.globalAlpha = r ? 0.35 : 0.5; ctx.lineWidth = r ? 3 : 4; ctx.stroke();
+      ctx.beginPath(); for (let k = 0; k < req.length; k++) if (req[k] && done[k]) seg(k);
+      ctx.strokeStyle = ACC; ctx.globalAlpha = r ? 0.35 : 1; ctx.lineWidth = r ? 4 : 7; ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    ctx.beginPath();
+    for (const ring of es.sub.rings) ring.forEach(([la, lo], i) => { const [x, y] = P(la, lo); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+    ctx.setLineDash([14, 10]); ctx.lineWidth = 4; ctx.strokeStyle = INK; ctx.globalAlpha = 0.7; ctx.stroke(); ctx.globalAlpha = 1; ctx.setLineDash([]);
+    if (r) {
+      const pts = r.latlng.map(([la, lo]) => P(la, lo));
+      const line = () => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); };
+      line(); ctx.lineWidth = 20; ctx.strokeStyle = HALO; ctx.stroke();
+      line(); ctx.lineWidth = 10; ctx.strokeStyle = ACC; ctx.stroke();
+      for (const a of arrowSpots(pts, r.length / 1000)) {
+        ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.ang);
+        ctx.beginPath(); ctx.moveTo(-18, -20); ctx.lineTo(22, 0); ctx.lineTo(-18, 20); ctx.lineTo(-8, 0); ctx.closePath();
+        ctx.lineWidth = 7; ctx.strokeStyle = HALO; ctx.stroke(); ctx.fillStyle = INK; ctx.fill(); ctx.restore();
+      }
+      const [sx, sy] = pts[0];
+      ctx.beginPath(); ctx.arc(sx, sy, 22, 0, Math.PI * 2); ctx.fillStyle = INK; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = HALO; ctx.stroke();
+      ctx.fillStyle = HALO; ctx.font = "600 19px 'Instrument Sans', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("S/F", sx, sy + 1);
+    }
+    ctx.font = "400 15px 'JetBrains Mono', monospace"; ctx.fillStyle = MUTED; ctx.textAlign = "right"; ctx.textBaseline = "alphabetic";
+    ctx.fillText(noTiles ? "© OpenStreetMap contributors" : "Tiles © Esri · Data © OpenStreetMap contributors", S - 14, H - 12);
+    ctx.restore();
+    if (save) {
+      const p = es.prog;
+      ctx.fillStyle = HALO; ctx.fillRect(0, H, S, band); ctx.fillStyle = ACC; ctx.fillRect(0, H, 10, band);
+      ctx.textBaseline = "alphabetic"; ctx.fillStyle = INK; ctx.textAlign = "left"; ctx.font = "600 40px 'Instrument Sans', sans-serif";
+      ctx.fillText(r ? `${es.sub.name} · ${r.label}` : es.sub.name, 36, S - 32);
+      ctx.textAlign = "right"; ctx.font = "800 44px 'Syne', sans-serif";
+      const big = r ? `${km1(r.length)} km` : `${Math.floor(p.frac * 100)}%`; ctx.fillText(big, S - 32, S - 32);
+      const bw = ctx.measureText(big).width;
+      ctx.font = "500 26px 'Instrument Sans', sans-serif"; ctx.fillStyle = MUTED;
+      ctx.fillText(r ? `${km1(r.every.newM)} km new` : `${km1(p.done)} of ${km1(p.total)} km · ${niceDate(today())}`, S - 32 - bw - 22, S - 34);
+    }
+  }
+  $("esImg").onclick = () => { if (es.prog) saveCanvas((c, nt) => drawEvery(c, null, true, nt), `${es.sub.name.toLowerCase().replace(/\s+/g, "-")}-progress-${today()}.png`); };
+
+  /* ---------- backup ---------- */
+  $("esExport").onclick = () => {
+    const n = Object.keys(es.data.suburbs).length;
+    if (!n) { setStatus("Nothing to export yet. Load a suburb and tick off a run first."); return; }
+    const data = { app: "Route Art Finder", kind: "every-street-backup", v: 1, exported: new Date().toISOString(), suburbs: es.data.suburbs };
+    saveBlob(new Blob([JSON.stringify(data)], { type: "application/json" }), `every-street-backup-${today()}.json`);
+    setStatus(`Exported ${n} suburb${n > 1 ? "s" : ""}. Keep the file somewhere safe, like your email or cloud drive.`);
+  };
+  $("esImport").onclick = () => $("esFile").click();
+  $("esFile").addEventListener("change", async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      if (!d || d.kind !== "every-street-backup" || !d.suburbs || typeof d.suburbs !== "object") throw new Error("That file isn't an Every street backup.");
+      let subs = 0, added = 0;
+      for (const [k, s] of Object.entries(d.suburbs)) {
+        if (!s || !Array.isArray(s.rings) || !Array.isArray(s.runs)) continue;
+        const runs = s.runs.filter(x => x && typeof x.id === "string" && typeof x.pts === "string");
+        const cur = es.data.suburbs[k];
+        if (!cur) { es.data.suburbs[k] = { name: String(s.name || "Suburb"), full: String(s.full || s.name || ""), rings: s.rings, runs, pct: s.pct, doneKm: s.doneKm, totalKm: s.totalKm }; added += runs.length; }
+        else { const have = new Set(cur.runs.map(x => x.id)); for (const x of runs) if (!have.has(x.id)) { cur.runs.push(x); added++; } cur.runs.sort((a, b) => (a.date || "").localeCompare(b.date || "")); }
+        subs++;
+      }
+      if (!subs) throw new Error("No suburbs found in that file.");
+      if (!es.data.current) es.data.current = Object.keys(es.data.suburbs)[0];
+      esSave();
+      if (!es.sub || es.data.current !== es.key) await openSuburb(es.data.current);
+      else { es.sub = es.data.suburbs[es.key]; if (es.g) { recomputeDone(); drawProgressLayer(); refreshNew(); } renderSuburb(); renderCards(); renderLog(); }
+      setStatus(`Imported ${subs} suburb${subs > 1 ? "s" : ""}, ${added} run${added === 1 ? "" : "s"} added.`);
+    } catch (err) { setStatus(err.message && !/JSON/.test(err.message) ? err.message : "Couldn't read that file. Pick the .json backup you exported."); }
+  });
+
+  /* ---------- switching between Route art and Every street ---------- */
+  let artRoute = null;
+  function setMode(m, first) {
+    if (state.mode === m) return;
+    const every = m === "every"; state.mode = m;
+    document.body.classList.toggle("mode-every", every);
+    $("tabArt").setAttribute("aria-selected", String(!every)); $("tabEvery").setAttribute("aria-selected", String(every));
+    try { localStorage.setItem("raf-mode", m); } catch (e) {}
+    const artLayers = [circle, centreH, edgeH].concat(focusArea ? [focusCircle, focusCH, focusEH] : []);
+    if (setPicking && picking) setPicking(false);
+    if (every) {
+      if (!first) artRoute = mapRoute;
+      for (const l of artLayers) map.removeLayer(l);
+      routeLayer.clearLayers(); mapRoute = null; editBar.hidden = true; updateElevPanel(null);
+      esLayer.addTo(map);
+      setStatus(es.sub ? (es.prog ? `${es.sub.name}: ${Math.floor(es.prog.frac * 100)}% done.` : `Loading ${es.sub.name}…`) : "Type a suburb and press Load to start.");
+      if (!es.key && es.data.current && es.data.suburbs[es.data.current]) openSuburb(es.data.current);
+      else if (es.bounds) map.fitBounds(es.bounds, { padding: [30, 30] });
+      else renderSuburb(), renderCards();
+    } else {
+      map.removeLayer(esLayer);
+      routeLayer.clearLayers(); mapRoute = null; editBar.hidden = true; updateElevPanel(null);
+      for (const l of artLayers) l.addTo(map);
+      circleInfo();
+      setStatus(state.results.length ? "Back to route art." : "Ready. Street data comes from OpenStreetMap.");
+      if (artRoute && state.results.includes(artRoute)) showOnMap(artRoute); else map.fitBounds(circle.getBounds(), { padding: [30, 30] });
+    }
+  }
+  state.mode = "art";
+  $("tabArt").onclick = () => setMode("art");
+  $("tabEvery").onclick = () => setMode("every");
+  $("esSubGo").onclick = findSuburb;
+  $("esSub").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); findSuburb(); } });
+  $("esPlan").onclick = planRuns;
+  state.onTheme = () => { drawProgressLayer(); if (state.mode === "every" && es.plan.length) renderCards(); };
+  state.onStart = () => { if (state.mode === "every" && es.plan.length) setStatus("Start moved. Press Plan runs to plan from the new start."); };
+  renderSuburb(); renderCards();
+  try { if (localStorage.getItem("raf-mode") === "every") setMode("every", true); } catch (e) {}
+
   if (document.fonts) document.fonts.ready.then(() => {});
 })();
 </script>
