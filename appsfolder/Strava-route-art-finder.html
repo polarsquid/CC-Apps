@@ -1133,6 +1133,14 @@ body.mode-every .art-only, body:not(.mode-every) .every-only { display: none !im
 .esline.bad:empty { display: none; }
 #esSyncLine span { color: var(--muted); }
 #esSyncStop.armed { color: var(--warn); border-color: var(--warn); }
+/* several suburbs at once */
+.essaved .hint { flex-basis: 100%; margin: -2px 0 2px; }
+.essub .tick { display: inline-block; width: 11px; height: 11px; margin-right: 6px; vertical-align: -1px; border: 1.5px solid currentColor; border-radius: 2px; }
+.essub button[aria-pressed=true] .tick { background: currentColor; box-shadow: inset 0 0 0 2px var(--ink); }
+.esper { list-style: none; margin: 2px 0 0; padding: 0; font-size: 13px; color: var(--muted); }
+.esper li { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.esper li span:first-child { color: var(--ink); font-weight: 600; }
+.esper strong { color: var(--ink); }
 </style>
 </head>
 <body>
@@ -1200,10 +1208,11 @@ body.mode-every .art-only, body:not(.mode-every) .every-only { display: none !im
       <div class="status" id="status" role="status">Ready. Street data comes from OpenStreetMap.</div>
       <p class="hint art-only">Streets load in a few seconds. Repeat searches in the same area reuse them.</p>
       <div class="field every-only esprog" id="esProg" hidden>
-        <span class="lbl">Progress</span>
+        <span class="lbl" id="esProgLbl">Progress</span>
         <div class="dist"><output id="esPct">–</output><small>% done</small></div>
         <div class="esbar" aria-hidden="true"><i id="esBarFill"></i></div>
         <p class="esline" id="esLine"></p>
+        <ul class="esper" id="esPer" hidden></ul>
         <button type="button" class="ghost" id="esImg">Save progress image</button>
       </div>
       <div class="field every-only">
@@ -3836,7 +3845,7 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
   }
 
   /* ---------- fixed image frame per suburb (so saved images line up) ---------- */
-  function suburbGeometry(sub) {
+  function suburbGeometry(sub) { // sub: the combined view (all ticked suburbs' outlines)
     let s = Infinity, n = -Infinity, w = Infinity, e = -Infinity;
     for (const ring of sub.rings) for (const [la, lo] of ring) { s = Math.min(s, la); n = Math.max(n, la); w = Math.min(w, lo); e = Math.max(e, lo); }
     const [x0, y1] = merc(s, w), [x1, y0] = merc(n, e);
@@ -3891,15 +3900,36 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     const rings = polys.flat().map(ring => ring.map(([lo, la]) => [+la.toFixed(6), +lo.toFixed(6)]));
     const old = es.data.suburbs[key];
     es.data.suburbs[key] = { ...(old || { runs: [], added: Date.now() }), name: h.name || h.display_name.split(",")[0], full: placeLabel(h), rings };
-    es.data.current = key; esSave();
+    const act = activeKeys(); if (!act.includes(key)) act.push(key);
+    es.data.active = act; es.data.current = act[0]; esSave();
     $("esSub").value = "";
-    openSuburb(key);
+    openSuburbs(act);
+  }
+  /* which saved suburbs are ticked on this device (older saves only had one "current") */
+  function activeKeys() {
+    const ok = k => !!es.data.suburbs[k];
+    let a = Array.isArray(es.data.active) ? es.data.active.filter(ok) : [];
+    if (!a.length && es.data.current && ok(es.data.current)) a = [es.data.current];
+    return [...new Set(a)];
+  }
+  const shortLabel = names => names.length <= 2 ? names.join(" + ") : `${names[0]} +${names.length - 1}`;
+  /* one combined view of the ticked suburbs; runs are shared between suburbs by id, so each counts once */
+  function makeView(keys) {
+    const subs = keys.map(k => es.data.suburbs[k]), names = subs.map(x => x.name);
+    return {
+      keys, subs, name: shortLabel(names), names,
+      full: subs.length === 1 ? (subs[0].full || subs[0].name) : names.join(", "),
+      rings: subs.flatMap(x => x.rings),
+      get runs() { const m = new Map(); for (const x of subs) for (const r of x.runs) if (!m.has(r.id)) m.set(r.id, r); return [...m.values()].sort((a, b) => (a.date || "").localeCompare(b.date || "")); },
+    };
   }
 
   /* ---------- open a suburb: outline right away, then its streets ---------- */
-  async function openSuburb(key) {
-    const sub = es.data.suburbs[key]; if (!sub) return;
-    es.key = key; es.sub = sub; es.g = null; es.an = null; es.done = null; es.prog = null; es.plan = []; es.page = 0;
+  const openSuburb = key => openSuburbs([key]);
+  async function openSuburbs(keys) {
+    keys = keys.filter(k => es.data.suburbs[k]); if (!keys.length) { closeSuburb(); return; }
+    const sub = makeView(keys);
+    es.keys = keys; es.key = keys.join("+"); es.sub = sub; es.g = null; es.an = null; es.done = null; es.prog = null; es.plan = []; es.page = 0; es.subProg = null;
     suburbGeometry(sub);
     routeLayer.clearLayers(); mapRoute = null; editBar.hidden = true; updateElevPanel(null);
     drawProgressLayer();
@@ -3917,7 +3947,7 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
       s = Math.min(s, state.start.lat); n = Math.max(n, state.start.lat); w = Math.min(w, state.start.lon); e = Math.max(e, state.start.lon);
     }
     const lat = (s + n) / 2, lon = (w + e) / 2, radius = Math.max((n - s) / 2 * 111320, (e - w) / 2 * 111320 * Math.cos(lat * Math.PI / 180)) + 600;
-    if (radius > 10000) { setStatus(`${sub.name} is too big to plan in one go (${km1(radius * 2)} km across). Try a smaller suburb.`, 0); return false; }
+    if (radius > 10000) { setStatus(es.keys.length > 1 ? `Those suburbs together are too spread out to plan in one go (${km1(radius * 2)} km across). Untick one.` : `${sub.name} is too big to plan in one go (${km1(radius * 2)} km across). Try a smaller suburb.`, 0); return false; }
     $("esPlan").disabled = true;
     try {
       setStatus(`Downloading streets for ${sub.name}…`, 0.05);
@@ -3927,8 +3957,12 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
       const proj = RouteArt.makeProjection(b.lat, b.lon), g = RouteArt.buildGraph(els, proj);
       const rings = sub.rings.map(r => r.map(([la, lo]) => proj.toXY(la, lo)));
       const names = els.filter(x => x.type === "name").map(x => ({ name: x.name, xy: x.ll.map(([la, lo]) => proj.toXY(la, lo)) }));
-      setStatus("Finding the streets inside the suburb…", 0.85); await sleep(20);
+      setStatus(es.keys.length > 1 ? "Finding the streets inside the suburbs…" : "Finding the streets inside the suburb…", 0.85); await sleep(20);
       const an = EveryStreet.analyse(g, rings, names);
+      // which ticked suburb each counted segment belongs to, for per-suburb progress
+      const subRings = es.sub.subs.map(x => x.rings.map(r => r.map(([la, lo]) => proj.toXY(la, lo))));
+      an.subOf = new Int8Array(g.nEdges).fill(-1);
+      for (let k = 0; k < g.nEdges; k++) if (an.required[k]) an.subOf[k] = subRings.length === 1 ? 0 : subRings.findIndex(rr => EveryStreet.inRings(rr, an.mx[k], an.my[k]));
       if (id !== es.loadId) return false;
       Object.assign(es, { g, proj, an, cover: { lat, lon, radius } });
       for (const r of es.plan) { r.g = g; r.proj = proj; }
@@ -3948,11 +3982,17 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     if (!es.g) return;
     // planned and art runs follow the streets exactly; GPS tracks from real runs wander a little, so they get more leeway
     const lines = (x) => x.pts.split(" ").map(seg => PL.dec(seg).map(([la, lo]) => es.proj.toXY(la, lo)));
-    const exact = es.sub.runs.filter(x => x.src !== "gpx").flatMap(lines), gps = es.sub.runs.filter(x => x.src === "gpx").flatMap(lines);
+    const runs = es.sub.runs, exact = runs.filter(x => x.src !== "gpx").flatMap(lines), gps = runs.filter(x => x.src === "gpx").flatMap(lines);
     es.done = EveryStreet.matchRuns(es.g, es.an, exact);
     if (gps.length) { const d2 = EveryStreet.matchRuns(es.g, es.an, gps, 15); for (let k = 0; k < d2.length; k++) if (d2[k]) es.done[k] = 1; }
     es.prog = EveryStreet.progress(es.an, es.done);
-    Object.assign(es.sub, { pct: Math.floor(es.prog.frac * 100), doneKm: +km1(es.prog.done), totalKm: +km1(es.prog.total) });
+    es.subProg = es.sub.subs.map((x, i) => {
+      const req = new Uint8Array(es.an.required.length); let total = 0;
+      for (let k = 0; k < req.length; k++) if (es.an.required[k] && es.an.subOf[k] === i) { req[k] = 1; total += es.an.elen[k]; }
+      const p = EveryStreet.progress({ ...es.an, required: req, total }, es.done);
+      Object.assign(x, { pct: Math.floor(p.frac * 100), doneKm: +km1(p.done), totalKm: +km1(p.total) });
+      return p;
+    });
     esSave();
   }
 
@@ -3961,23 +4001,30 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     const sub = es.sub;
     $("esSubInfo").hidden = !sub;
     if (sub) $("esSubText").textContent = sub.full || sub.name;
-    // other suburbs you've started, to switch between
-    const keys = Object.keys(es.data.suburbs), box = $("esSaved");
+    // saved suburbs: tick one or several to work on together
+    const keys = Object.keys(es.data.suburbs), box = $("esSaved"), act = es.keys || [];
     box.hidden = keys.length < 2 && !!sub;
-    box.innerHTML = keys.length ? `<span class="lbl">Your suburbs</span>` : "";
+    box.innerHTML = keys.length ? `<span class="lbl">Your suburbs</span><span class="hint">Tick the ones to work on. Several at once plans runs across all of them.</span>` : "";
     for (const k of keys) {
       const s = es.data.suburbs[k], w = document.createElement("span"); w.className = "essub";
       const b = document.createElement("button"); b.type = "button";
-      b.setAttribute("aria-pressed", String(k === es.key));
-      b.innerHTML = `${esc(s.name)} <small>${s.pct != null ? s.pct + "%" : ""}</small>`;
-      b.onclick = () => { if (k === es.key) return; es.data.current = k; esSave(); openSuburb(k); };
+      const on = act.includes(k);
+      b.setAttribute("aria-pressed", String(on)); b.title = on ? `Untick ${s.name}` : `Tick ${s.name}`;
+      b.innerHTML = `<i class="tick" aria-hidden="true"></i>${esc(s.name)} <small>${s.pct != null ? s.pct + "%" : ""}</small>`;
+      b.onclick = () => {
+        const next = on ? act.filter(x => x !== k) : [...act, k];
+        if (!next.length) { setStatus("Keep at least one suburb ticked."); return; }
+        es.data.active = next; es.data.current = next[0]; esSave(); openSuburbs(next);
+      };
       const del = document.createElement("button"); del.type = "button"; del.className = "esdel"; del.textContent = "×";
       del.title = `Remove ${s.name} and its progress`; del.setAttribute("aria-label", del.title);
       del.onclick = () => {
         if (!del.classList.contains("armed")) { del.classList.add("armed"); del.textContent = "Remove?"; clearTimeout(del._t); del._t = setTimeout(() => { del.classList.remove("armed"); del.textContent = "×"; }, 3000); return; }
         delete es.data.suburbs[k]; (es.data.removedSubs = es.data.removedSubs || {})[k] = Date.now();
-        if (k === es.key) { es.data.current = Object.keys(es.data.suburbs)[0] || null; esSave(); if (es.data.current) openSuburb(es.data.current); else closeSuburb(); }
-        else { esSave(); renderSuburb(); }
+        if (act.includes(k)) {
+          let next = act.filter(x => x !== k); if (!next.length && Object.keys(es.data.suburbs).length) next = [Object.keys(es.data.suburbs)[0]];
+          es.data.active = next; es.data.current = next[0] || null; esSave(); if (next.length) openSuburbs(next); else closeSuburb();
+        } else { esSave(); renderSuburb(); }
       };
       w.append(b, del); box.appendChild(w);
     }
@@ -3986,11 +4033,15 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     $("esPct").textContent = on ? Math.floor(p.frac * 100) : "–";
     $("esBarFill").style.width = on ? (p.frac * 100).toFixed(1) + "%" : "0";
     $("esLine").innerHTML = on ? `${p.streets ? `<strong>${p.streetsDone}</strong> of <strong>${p.streets}</strong> streets · ` : ""}<strong>${km1(p.done)}</strong> of <strong>${km1(p.total)}</strong> km` : sub ? "Loading streets…" : "";
+    const per = $("esPer"), many = on && es.subProg && es.subProg.length > 1;
+    per.hidden = !many;
+    per.innerHTML = many ? es.sub.subs.map((x, i) => { const q = es.subProg[i]; return `<li><span>${esc(x.name)}</span><span><strong>${Math.floor(q.frac * 100)}%</strong> · ${km1(q.done)} of ${km1(q.total)} km</span></li>`; }).join("") : "";
+    $("esProgLbl").textContent = many ? "Progress, all ticked suburbs" : "Progress";
     $("esImg").disabled = !on;
-    $("esFoot").innerHTML = sub ? `<span class="eslegend"><i class="sw done"></i>Done <i class="sw todo"></i>To run <i class="sw edge"></i>${esc(sub.name)} boundary</span>${on ? `<span><strong>${Math.floor(p.frac * 100)}%</strong> · ${km1(p.done)} of ${km1(p.total)} km</span>` : ""}` : "Type a suburb in the panel to see its streets here.";
+    $("esFoot").innerHTML = sub ? `<span class="eslegend"><i class="sw done"></i>Done <i class="sw todo"></i>To run <i class="sw edge"></i>${es.keys && es.keys.length > 1 ? "Suburb boundaries" : esc(sub.name) + " boundary"}</span>${on ? `<span><strong>${Math.floor(p.frac * 100)}%</strong> · ${km1(p.done)} of ${km1(p.total)} km</span>` : ""}` : "Type a suburb in the panel to see its streets here.";
   }
   function closeSuburb() {
-    es.loadId++; Object.assign(es, { key: null, sub: null, g: null, an: null, done: null, prog: null, plan: [], cover: null });
+    es.loadId++; Object.assign(es, { key: null, keys: [], sub: null, g: null, an: null, done: null, prog: null, subProg: null, plan: [], cover: null });
     esLayer.clearLayers(); routeLayer.clearLayers(); mapRoute = null; editBar.hidden = true; updateElevPanel(null);
     renderSuburb(); renderCards(); renderLog();
   }
@@ -4058,21 +4109,18 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
   function markRun(r) {
     if (!es.g) return;
     const newM = measure(r.path).newM;
-    const rec = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date: today(), km: +(r.length / 1000).toFixed(2), newKm: +(newM / 1000).toFixed(2), pts: PL.enc(r.latlng) };
-    es.sub.runs.push(rec);
-    if (!esSave()) { es.sub.runs.pop(); return; }
-    r.every.mark = rec.id; r.every.newM = newM;
     const before = es.prog.done;
-    recomputeDone(); drawProgressLayer(); refreshNew(); renderSuburb(); renderCards(); renderLog();
+    const res = addRun([r.latlng], { name: r.label, newKm: +(newM / 1000).toFixed(2) }, es.keys);
+    if (!res.id) return;
+    r.every.mark = res.id; r.every.newM = newM;
+    refreshNew(); renderSuburb(); renderCards(); renderLog();
     setStatus(`Ticked off: ${km1(es.prog.done - before)} km of new street. ${Math.floor(es.prog.frac * 100)}% of ${es.sub.name} done.`, 1);
     if (es.prog.frac >= 0.995) setStatus(`That finishes ${es.sub.name}! Type the next suburb above to keep going.`, 1);
   }
   const forget = id => { (es.data.removed = es.data.removed || {})[id] = Date.now(); }; // so other devices drop it too
   function unmarkRun(id) {
-    es.sub.runs = es.sub.runs.filter(x => x.id !== id); forget(id); esSave();
     for (const r of es.plan) if (r.every.mark === id) r.every.mark = null;
-    if (es.g) { recomputeDone(); drawProgressLayer(); refreshNew(); }
-    renderSuburb(); renderCards(); renderLog();
+    removeAdded(id); // from every suburb it was saved in
   }
 
   /* ---------- planned run cards ---------- */
@@ -4244,10 +4292,10 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
         subs++;
       }
       if (!subs) throw new Error("No suburbs found in that file.");
-      if (!es.data.current) es.data.current = Object.keys(es.data.suburbs)[0];
+      if (!activeKeys().length) { es.data.current = Object.keys(es.data.suburbs)[0]; es.data.active = [es.data.current]; }
       esSave();
-      if (!es.sub || es.data.current !== es.key) await openSuburb(es.data.current);
-      else { es.sub = es.data.suburbs[es.key]; if (es.g) { recomputeDone(); drawProgressLayer(); refreshNew(); } renderSuburb(); renderCards(); renderLog(); }
+      if (!es.sub || activeKeys().join("+") !== es.key) await openSuburbs(activeKeys());
+      else { es.sub = makeView(es.keys); if (es.g) { recomputeDone(); drawProgressLayer(); refreshNew(); } renderSuburb(); renderCards(); renderLog(); }
       setStatus(`Imported ${subs} suburb${subs > 1 ? "s" : ""}, ${added} run${added === 1 ? "" : "s"} added.`);
     } catch (err) { setStatus(err.message && !/JSON/.test(err.message) ? err.message : "Couldn't read that file. Pick the .json backup you exported."); }
   });
@@ -4264,22 +4312,22 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
   }
   const segKm = segs => segs.reduce((t, seg) => t + seg.reduce((a, p, i) => i ? a + map.distance(seg[i - 1], p) : 0, 0), 0) / 1000;
   /* segs: lines of [lat, lon]; meta: { src: "art" | "gpx", name, date }. Returns the suburbs it was added to. */
-  function addRun(segs, meta) {
-    const keys = suburbsFor(segs); if (!keys.length) return { keys, dup: false };
+  function addRun(segs, meta, also = []) {
+    const keys = [...new Set([...also, ...suburbsFor(segs)])].filter(k => es.data.suburbs[k]); if (!keys.length) return { keys, dup: false };
     const pts = segs.map(seg => PL.enc(seg)).join(" "), id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const km = +segKm(segs).toFixed(2), added = [];
     for (const k of keys) {
       const sub = es.data.suburbs[k];
       if (sub.runs.some(x => x.pts === pts)) continue; // already added
-      sub.runs.push({ id, date: meta.date || today(), km, newKm: null, pts, src: meta.src, name: meta.name });
-      if (k !== es.key || !es.g) delete sub.pct; // its % is worked out again next time it's opened
+      sub.runs.push({ id, date: meta.date || today(), km, newKm: meta.newKm ?? null, pts, src: meta.src, name: meta.name });
+      if (!(es.keys || []).includes(k) || !es.g) delete sub.pct; // its % is worked out again next time it's opened
       added.push(k);
     }
     if (!added.length) return { keys, dup: true };
     if (!esSave()) { for (const k of added) es.data.suburbs[k].runs = es.data.suburbs[k].runs.filter(x => x.id !== id); return { keys: [], dup: false }; }
-    if (es.sub && added.includes(es.key) && es.g) { // the open suburb: work out how much new street it was
+    if (es.sub && added.some(k => es.keys.includes(k)) && es.g) { // an open suburb: work out how much new street it was
       const before = es.prog.done; recomputeDone();
-      const rec = es.sub.runs.find(x => x.id === id); rec.newKm = +((es.prog.done - before) / 1000).toFixed(2); esSave();
+      if (meta.newKm == null) { const nk = +((es.prog.done - before) / 1000).toFixed(2); for (const k of added) { const rec = es.data.suburbs[k].runs.find(x => x.id === id); if (rec) rec.newKm = nk; } esSave(); }
       drawProgressLayer(); refreshNew(); renderCards();
     }
     renderSuburb(); renderLog();
@@ -4287,7 +4335,7 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
   }
   function removeAdded(id) {
     forget(id);
-    for (const [k, sub] of Object.entries(es.data.suburbs)) if (sub.runs.some(x => x.id === id)) { sub.runs = sub.runs.filter(x => x.id !== id); if (k !== es.key || !es.g) delete sub.pct; }
+    for (const [k, sub] of Object.entries(es.data.suburbs)) if (sub.runs.some(x => x.id === id)) { sub.runs = sub.runs.filter(x => x.id !== id); if (!(es.keys || []).includes(k) || !es.g) delete sub.pct; }
     esSave();
     if (es.g) { recomputeDone(); drawProgressLayer(); refreshNew(); renderCards(); }
     renderSuburb(); renderLog();
@@ -4364,7 +4412,7 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
       routeLayer.clearLayers(); mapRoute = null; editBar.hidden = true; updateElevPanel(null);
       esLayer.addTo(map);
       setStatus(es.sub ? (es.prog ? `${es.sub.name}: ${Math.floor(es.prog.frac * 100)}% done.` : `Loading ${es.sub.name}…`) : "Type a suburb and press Load to start.");
-      if (!es.key && es.data.current && es.data.suburbs[es.data.current]) openSuburb(es.data.current);
+      if (!es.key && activeKeys().length) openSuburbs(activeKeys());
       else if (es.bounds) map.fitBounds(es.bounds, { padding: [30, 30] });
       else renderSuburb(), renderCards();
     } else {
@@ -4388,7 +4436,7 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
   const syncSig = d => JSON.stringify([Object.keys(d.suburbs || {}).sort().map(k => [k, (d.suburbs[k].runs || []).map(x => x.id).sort()]), Object.keys(d.removed || {}).sort(), Object.keys(d.removedSubs || {}).sort()]);
   function mergeData(local, remote) {
     const removed = { ...(remote.removed || {}), ...(local.removed || {}) }, removedSubs = { ...(remote.removedSubs || {}), ...(local.removedSubs || {}) };
-    const out = { v: 1, current: local.current, suburbs: {}, removed, removedSubs };
+    const out = { v: 1, current: local.current, active: local.active, suburbs: {}, removed, removedSubs };
     const keys = new Set([...Object.keys(local.suburbs || {}), ...Object.keys(remote.suburbs || {})]);
     for (const k of keys) {
       const L = (local.suburbs || {})[k], R = (remote.suburbs || {})[k], added = Math.max((L && L.added) || 0, (R && R.added) || 0);
@@ -4433,7 +4481,7 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     return { data, sha: j.sha };
   }
   async function push(data, sha) {
-    const { current, ...rest } = data; // which suburb is open stays per device
+    const { current, active, ...rest } = data; // which suburbs are open stays per device
     const body = { message: `Every street progress from ${navigator.userAgent.includes("Android") ? "Android" : "a computer"}, ${new Date().toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" })}`, content: b64enc(JSON.stringify({ app: "Route Art Finder", kind: "every-street-sync", updated: new Date().toISOString(), ...rest })) };
     if (sha) body.sha = sha;
     const r = await gh("PUT", filePath(), body);
@@ -4444,10 +4492,11 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
   }
   /* after other devices' changes arrive: redraw whatever is showing */
   function applyMerged() {
-    if (es.key && !es.data.suburbs[es.key]) { if (es.data.current) openSuburb(es.data.current); else closeSuburb(); return; }
-    if (!es.key && es.data.current && state.mode === "every") { openSuburb(es.data.current); return; }
+    const act = activeKeys();
+    if (es.key && act.join("+") !== es.key) { if (act.length) openSuburbs(act); else closeSuburb(); return; }
+    if (!es.key && act.length && state.mode === "every") { openSuburbs(act); return; }
     if (es.key) {
-      es.sub = es.data.suburbs[es.key];
+      es.sub = makeView(es.keys);
       for (const r of es.plan) if (r.every.mark && !es.sub.runs.some(x => x.id === r.every.mark)) r.every.mark = null;
       if (es.g) { recomputeDone(); drawProgressLayer(); refreshNew(); renderCards(); }
     }
