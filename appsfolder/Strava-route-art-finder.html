@@ -1123,6 +1123,7 @@ body.mode-every .art-only, body:not(.mode-every) .every-only { display: none !im
 @media (hover: hover) { .ep-tog:hover { background: var(--ink); color: var(--paper); } }
 .elevpanel.closed { padding-bottom: 12px; }
 .elevpanel.closed .ep-graph { display: none; }
+.controls #esGpx { padding: 7px 12px; align-self: flex-start; }
 </style>
 </head>
 <body>
@@ -1195,6 +1196,12 @@ body.mode-every .art-only, body:not(.mode-every) .every-only { display: none !im
         <div class="esbar" aria-hidden="true"><i id="esBarFill"></i></div>
         <p class="esline" id="esLine"></p>
         <button type="button" class="ghost" id="esImg">Save progress image</button>
+      </div>
+      <div class="field every-only">
+        <span class="lbl">Add a run you've done</span>
+        <div class="libbtns"><button type="button" class="ghost" id="esGpx">Add GPX files</button></div>
+        <input type="file" id="esGpxFile" accept=".gpx,application/gpx+xml,application/xml,text/xml" multiple hidden>
+        <p class="hint">Any run counts towards every suburb it passes through. Export it from Strava or Garmin Connect as GPX. Art routes have an "Add to Every street" button on their cards.</p>
       </div>
       <div class="field every-only">
         <span class="lbl">Backup</span>
@@ -3543,9 +3550,13 @@ out skel qt;`;
             <button type="button" data-a="gpx">Download GPX</button>
             <button type="button" data-a="watch">Watch code</button>
             <button type="button" data-a="map">Show on map</button>
+            <button type="button" data-a="addes" aria-pressed="false">Add to Every street</button>
           </div>
         </div>`;
       wrap.appendChild(card);
+      const addes = card.querySelector("[data-a=addes]");
+      if (state.syncAddBtn) state.syncAddBtn(r, addes);
+      addes.onclick = () => state.addToEvery(r, addes);
       const cv = card.querySelector("canvas");
       const view = { outline: false, upright: false };
       const redraw = (noTiles) => drawMap(cv, r, view, noTiles);
@@ -3906,8 +3917,11 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
   }
   function recomputeDone() {
     if (!es.g) return;
-    const runs = es.sub.runs.map(x => PL.dec(x.pts).map(([la, lo]) => es.proj.toXY(la, lo)));
-    es.done = EveryStreet.matchRuns(es.g, es.an, runs);
+    // planned and art runs follow the streets exactly; GPS tracks from real runs wander a little, so they get more leeway
+    const lines = (x) => x.pts.split(" ").map(seg => PL.dec(seg).map(([la, lo]) => es.proj.toXY(la, lo)));
+    const exact = es.sub.runs.filter(x => x.src !== "gpx").flatMap(lines), gps = es.sub.runs.filter(x => x.src === "gpx").flatMap(lines);
+    es.done = EveryStreet.matchRuns(es.g, es.an, exact);
+    if (gps.length) { const d2 = EveryStreet.matchRuns(es.g, es.an, gps, 15); for (let k = 0; k < d2.length; k++) if (d2[k]) es.done[k] = 1; }
     es.prog = EveryStreet.progress(es.an, es.done);
     Object.assign(es.sub, { pct: Math.floor(es.prog.frac * 100), doneKm: +km1(es.prog.done), totalKm: +km1(es.prog.total) });
     esSave();
@@ -4103,7 +4117,8 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     const ol = $("esLog"); ol.innerHTML = "";
     for (const x of list) {
       const li = document.createElement("li");
-      li.innerHTML = `<span class="d">${esc(niceDate(x.date))}</span><span class="k"><strong>${x.km.toFixed(1)} km</strong> · ${x.newKm.toFixed(1)} km new</span>`;
+      const from = x.src === "art" ? `${esc(x.name || "Route art")} · ` : x.src === "gpx" ? `${esc(x.name || "GPX")} · ` : "";
+      li.innerHTML = `<span class="d">${esc(niceDate(x.date))}</span><span class="k">${from}<strong>${x.km.toFixed(1)} km</strong>${x.newKm != null ? ` · ${x.newKm.toFixed(1)} km new` : ""}</span>`;
       const b = document.createElement("button"); b.type = "button"; b.textContent = "Remove";
       b.onclick = () => {
         if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Remove this run?"; clearTimeout(b._t); b._t = setTimeout(() => { b.classList.remove("armed"); b.textContent = "Remove"; }, 3000); return; }
@@ -4203,6 +4218,101 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
       else { es.sub = es.data.suburbs[es.key]; if (es.g) { recomputeDone(); drawProgressLayer(); refreshNew(); } renderSuburb(); renderCards(); renderLog(); }
       setStatus(`Imported ${subs} suburb${subs > 1 ? "s" : ""}, ${added} run${added === 1 ? "" : "s"} added.`);
     } catch (err) { setStatus(err.message && !/JSON/.test(err.message) ? err.message : "Couldn't read that file. Pick the .json backup you exported."); }
+  });
+
+  /* ---------- add any run to Every street: art routes and GPX files of real runs ----------
+     A run is saved into every saved suburb it passes through, and matched onto that suburb's streets when it's opened. */
+  function suburbsFor(segs) {
+    return Object.keys(es.data.suburbs).filter(k => {
+      const sub = es.data.suburbs[k], rings = sub.rings.map(r => r.map(([la, lo]) => [lo, la]));
+      let s = Infinity, n = -Infinity, w = Infinity, e = -Infinity;
+      for (const ring of sub.rings) for (const [la, lo] of ring) { s = Math.min(s, la); n = Math.max(n, la); w = Math.min(w, lo); e = Math.max(e, lo); }
+      return segs.some(seg => seg.some(([la, lo]) => la >= s && la <= n && lo >= w && lo <= e && EveryStreet.inRings(rings, lo, la)));
+    });
+  }
+  const segKm = segs => segs.reduce((t, seg) => t + seg.reduce((a, p, i) => i ? a + map.distance(seg[i - 1], p) : 0, 0), 0) / 1000;
+  /* segs: lines of [lat, lon]; meta: { src: "art" | "gpx", name, date }. Returns the suburbs it was added to. */
+  function addRun(segs, meta) {
+    const keys = suburbsFor(segs); if (!keys.length) return { keys, dup: false };
+    const pts = segs.map(seg => PL.enc(seg)).join(" "), id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const km = +segKm(segs).toFixed(2), added = [];
+    for (const k of keys) {
+      const sub = es.data.suburbs[k];
+      if (sub.runs.some(x => x.pts === pts)) continue; // already added
+      sub.runs.push({ id, date: meta.date || today(), km, newKm: null, pts, src: meta.src, name: meta.name });
+      if (k !== es.key || !es.g) delete sub.pct; // its % is worked out again next time it's opened
+      added.push(k);
+    }
+    if (!added.length) return { keys, dup: true };
+    if (!esSave()) { for (const k of added) es.data.suburbs[k].runs = es.data.suburbs[k].runs.filter(x => x.id !== id); return { keys: [], dup: false }; }
+    if (es.sub && added.includes(es.key) && es.g) { // the open suburb: work out how much new street it was
+      const before = es.prog.done; recomputeDone();
+      const rec = es.sub.runs.find(x => x.id === id); rec.newKm = +((es.prog.done - before) / 1000).toFixed(2); esSave();
+      drawProgressLayer(); refreshNew(); renderCards();
+    }
+    renderSuburb(); renderLog();
+    return { keys: added, id, dup: false };
+  }
+  function removeAdded(id) {
+    for (const [k, sub] of Object.entries(es.data.suburbs)) if (sub.runs.some(x => x.id === id)) { sub.runs = sub.runs.filter(x => x.id !== id); if (k !== es.key || !es.g) delete sub.pct; }
+    esSave();
+    if (es.g) { recomputeDone(); drawProgressLayer(); refreshNew(); renderCards(); }
+    renderSuburb(); renderLog();
+  }
+  const subNames = keys => { const n = keys.map(k => es.data.suburbs[k].name); return n.length > 1 ? n.slice(0, -1).join(", ") + " and " + n[n.length - 1] : n[0]; };
+  /* art route cards: "Add to Every street" (and undo) */
+  state.addToEvery = (r, btn) => {
+    const sync = () => { btn.setAttribute("aria-pressed", String(!!r.esAdded)); btn.textContent = r.esAdded ? "In Every street · undo" : "Add to Every street"; };
+    if (r.esAdded) { removeAdded(r.esAdded); r.esAdded = null; sync(); setStatus(`Took ${r.shape} out of your Every street progress.`); return; }
+    if (!Object.keys(es.data.suburbs).length) { setStatus("Load a suburb in the Every street tab first. Then runs you add count towards it."); return; }
+    const res = addRun([r.latlng], { src: "art", name: r.shape });
+    if (!res.keys.length) { setStatus(`${r.shape} doesn't go through any of your Every street suburbs (${subNames(Object.keys(es.data.suburbs))}).`); return; }
+    if (res.dup) { setStatus(`${r.shape} is already in your Every street progress.`); return; }
+    r.esAdded = res.id; sync();
+    setStatus(`Added ${r.shape} (${km1(r.length)} km) to your Every street progress in ${subNames(res.keys)}.`);
+  };
+  state.syncAddBtn = (r, btn) => { btn.setAttribute("aria-pressed", String(!!r.esAdded)); btn.textContent = r.esAdded ? "In Every street · undo" : "Add to Every street"; };
+  /* GPX files of real runs (from Strava, Garmin Connect and so on) */
+  function parseGpx(text) {
+    const doc = new DOMParser().parseFromString(text, "application/xml");
+    if (doc.querySelector("parsererror")) throw new Error("bad");
+    const segs = [];
+    const take = list => {
+      const seg = [];
+      for (const p of list) {
+        const la = +p.getAttribute("lat"), lo = +p.getAttribute("lon");
+        if (!isFinite(la) || !isFinite(lo)) continue;
+        if (seg.length && map.distance(seg[seg.length - 1], [la, lo]) < 10) continue; // thin out to about 1 point per 10 m: plenty, and it irons out GPS wobble
+        seg.push([la, lo]);
+      }
+      if (seg.length > 1) segs.push(seg);
+    };
+    for (const ts of doc.getElementsByTagName("trkseg")) take(ts.getElementsByTagName("trkpt"));
+    if (!segs.length) for (const rt of doc.getElementsByTagName("rte")) take(rt.getElementsByTagName("rtept"));
+    const t = doc.getElementsByTagName("time")[0], nm = doc.querySelector("trk > name, rte > name, metadata > name");
+    const d = t ? new Date(t.textContent) : null;
+    return { segs, name: nm ? nm.textContent.trim().slice(0, 60) : "", date: d && !isNaN(d) ? d.toLocaleDateString("en-CA") : null };
+  }
+  $("esGpx").onclick = () => {
+    if (!Object.keys(es.data.suburbs).length) { setStatus("Load a suburb first. Then runs you add count towards it."); $("esSub").focus(); return; }
+    $("esGpxFile").click();
+  };
+  $("esGpxFile").addEventListener("change", async e => {
+    const files = [...(e.target.files || [])]; e.target.value = ""; if (!files.length) return;
+    const msgs = [];
+    for (const f of files) {
+      const label = f.name.replace(/\.gpx$/i, "");
+      try {
+        if (!/\.gpx$/i.test(f.name) && !/<gpx[\s>]/.test(await f.slice(0, 2000).text())) { msgs.push(`${label}: not a GPX file (export the run as GPX).`); continue; }
+        const g = parseGpx(await f.text());
+        if (!g.segs.length) { msgs.push(`${label}: no track points in it.`); continue; }
+        const name = g.name || label, res = addRun(g.segs, { src: "gpx", name, date: g.date });
+        if (res.dup) msgs.push(`${name}: already added.`);
+        else if (!res.keys.length) msgs.push(`${name}: doesn't go through any of your suburbs.`);
+        else msgs.push(`${name} (${km1(segKm(g.segs) * 1000)} km) added to ${subNames(res.keys)}.`);
+      } catch (err) { msgs.push(`${label}: couldn't read it.`); }
+    }
+    setStatus(msgs.join(" "));
   });
 
   /* ---------- switching between Route art and Every street ---------- */
