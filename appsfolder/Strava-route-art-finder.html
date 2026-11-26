@@ -2307,6 +2307,21 @@ const EveryStreet = (() => {
       const x0 = Math.min(g.X[ea[k]], g.X[eb[k]]) - 16, x1 = Math.max(g.X[ea[k]], g.X[eb[k]]) + 16, y0 = Math.min(g.Y[ea[k]], g.Y[eb[k]]) - 16, y1 = Math.max(g.Y[ea[k]], g.Y[eb[k]]) + 16;
       for (let i = Math.floor(x0 / CS); i <= Math.floor(x1 / CS); i++) for (let j = Math.floor(y0 / CS); j <= Math.floor(y1 / CS); j++) { const h = key(i, j); let b = hash.get(h); if (!b) hash.set(h, b = []); b.push(k); }
     }
+    // a footpath segment beside a road: note on the road segments how far away it is, so a GPS track along
+    // the footpath of a wide street still counts for the street
+    const markSide = k => {
+      const b = hash.get(key(Math.floor(mx[k] / CS), Math.floor(my[k] / CS))); if (!b) return;
+      const ax = g.X[ea[k]], ay = g.Y[ea[k]], bx = g.X[eb[k]], by = g.Y[eb[k]], L = Math.hypot(bx - ax, by - ay);
+      for (const r of b) {
+        const px = g.X[ea[r]], py = g.Y[ea[r]], dx = g.X[eb[r]] - px, dy = g.Y[eb[r]] - py, RL = Math.hypot(dx, dy);
+        if (!RL || (L >= 1 && Math.abs((bx - ax) * dx + (by - ay) * dy) / (L * RL) <= 0.9)) continue;
+        // distance from the road's line to the footpath's middle, where the footpath sits alongside this road piece
+        const t = ((mx[k] - px) * dx + (my[k] - py) * dy) / (RL * RL);
+        if (t < -0.2 || t > 1.2) continue;
+        const d = Math.abs((mx[k] - px) * dy - (my[k] - py) * dx) / RL;
+        if (d <= 22 && d > sideOff[r]) sideOff[r] = d;
+      }
+    };
     const besideRoad = k => {
       const ax = g.X[ea[k]], ay = g.Y[ea[k]], bx = g.X[eb[k]], by = g.Y[eb[k]], L = Math.hypot(bx - ax, by - ay);
       const b = hash.get(key(Math.floor(mx[k] / CS), Math.floor(my[k] / CS))); if (!b) return false;
@@ -2321,13 +2336,14 @@ const EveryStreet = (() => {
     };
     const ch = chains(g);
     const required = new Uint8Array(E), chainOf = new Int32Array(E).fill(-1);
+    const sideOff = new Float32Array(E); // for a road segment: how far away its mapped footpaths run (0 = none)
     ch.forEach((c, ci) => {
       for (const k of c.eids) chainOf[k] = ci;
       let inLen = 0; for (const k of c.eids) if (inside[k]) inLen += elen[k];
       if (!inLen) return;
       if (kind[c.eids[0]] === 3) { // a footpath: skip it when most of it shadows a road
         let side = 0; for (const k of c.eids) if (besideRoad(k)) side += elen[k];
-        if (side > 0.6 * c.len) { c.beside = true; return; }
+        if (side > 0.6 * c.len) { c.beside = true; for (const k of c.eids) markSide(k); return; }
       }
       for (const k of c.eids) if (inside[k]) required[k] = 1;
     });
@@ -2357,19 +2373,21 @@ const EveryStreet = (() => {
       });
     }
     let total = 0; for (let k = 0; k < E; k++) if (required[k]) total += elen[k];
-    return { required, inside, elen, chainOf, chains: ch, chainName, total, mx, my, ea, eb };
+    return { required, inside, elen, chainOf, chains: ch, chainName, total, mx, my, ea, eb, sideOff };
   }
 
   /* which segments a set of runs (arrays of [x, y]) went along: every sample of the segment within tol of a run */
-  function matchRuns(g, an, runsXY, tol = 7) {
+  function matchRuns(g, an, runsXY, tol = 7, sides = false) {
     const E = g.nEdges, done = new Uint8Array(E);
     if (!runsXY.length) return done;
-    const CS = 25, hash = new Map(), key = (i, j) => i * 1e6 + j, segs = [];
+    const tolOf = k => sides && an.sideOff && an.sideOff[k] ? Math.max(tol, an.sideOff[k] + 7) : tol;
+    const maxTol = sides && an.sideOff ? Math.max(tol, 29) : tol; // footpaths are at most 22 m out
+    const CS = 30, hash = new Map(), key = (i, j) => i * 1e6 + j, segs = [];
     for (const pts of runsXY) for (let i = 1; i < pts.length; i++) {
       const [ax, ay] = pts[i - 1], [bx, by] = pts[i], s = segs.length; segs.push(ax, ay, bx, by);
-      for (let a = Math.floor((Math.min(ax, bx) - tol) / CS); a <= Math.floor((Math.max(ax, bx) + tol) / CS); a++) for (let b = Math.floor((Math.min(ay, by) - tol) / CS); b <= Math.floor((Math.max(ay, by) + tol) / CS); b++) { const h = key(a, b); let l = hash.get(h); if (!l) hash.set(h, l = []); l.push(s); }
+      for (let a = Math.floor((Math.min(ax, bx) - maxTol) / CS); a <= Math.floor((Math.max(ax, bx) + maxTol) / CS); a++) for (let b = Math.floor((Math.min(ay, by) - maxTol) / CS); b <= Math.floor((Math.max(ay, by) + maxTol) / CS); b++) { const h = key(a, b); let l = hash.get(h); if (!l) hash.set(h, l = []); l.push(s); }
     }
-    const near = (x, y) => {
+    const near = (x, y, tol) => {
       const l = hash.get(key(Math.floor(x / CS), Math.floor(y / CS))); if (!l) return false;
       for (const s of l) {
         const ax = segs[s], ay = segs[s + 1], dx = segs[s + 2] - ax, dy = segs[s + 3] - ay, L2 = dx * dx + dy * dy;
@@ -2381,9 +2399,28 @@ const EveryStreet = (() => {
     for (let k = 0; k < E; k++) {
       if (!an.inside[k] && !an.required[k]) continue;
       const ax = g.X[an.ea[k]], ay = g.Y[an.ea[k]], bx = g.X[an.eb[k]], by = g.Y[an.eb[k]], L = an.elen[k];
-      const n = Math.max(1, Math.ceil(L / 10)); let ok = true;
-      for (let i = 0; i <= n && ok; i++) { const t = L > 8 ? 0.1 + 0.8 * i / n : 0.5; if (!near(ax + (bx - ax) * t, ay + (by - ay) * t)) ok = false; if (L <= 8) break; }
+      const n = Math.max(1, Math.ceil(L / 10)), tk = tolOf(k); let ok = true;
+      for (let i = 0; i <= n && ok; i++) { const t = L > 8 ? 0.1 + 0.8 * i / n : 0.5; if (!near(ax + (bx - ax) * t, ay + (by - ay) * t, tk)) ok = false; if (L <= 8) break; }
       if (ok) done[k] = 1;
+    }
+    // GPS tracks: a short piece (under 25 m, at junctions and crossings) counts when matched pieces carry on
+    // in the same direction at both of its ends
+    if (sides) for (let pass = 0; pass < 3; pass++) {
+      let changed = false;
+      for (let k = 0; k < E; k++) {
+        if (done[k] || !an.required[k] || an.elen[k] >= 25) continue;
+        const a = an.ea[k], b = an.eb[k], dx = g.X[b] - g.X[a], dy = g.Y[b] - g.Y[a], L = Math.hypot(dx, dy) || 1;
+        const carries = (n, sgn) => { // a matched piece leaving node n, heading on in the same direction
+          for (let e = g.start[n]; e < g.start[n + 1]; e++) {
+            const k2 = g.eid[e]; if (k2 === k || !done[k2]) continue;
+            const m = g.to[e], ex = g.X[m] - g.X[n], ey = g.Y[m] - g.Y[n], EL = Math.hypot(ex, ey) || 1;
+            if (sgn * (ex * dx + ey * dy) / (EL * L) > 0.8) return true;
+          }
+          return false;
+        };
+        if (carries(b, 1) && carries(a, -1)) { done[k] = 1; changed = true; }
+      }
+      if (!changed) break;
     }
     return done;
   }
@@ -3984,7 +4021,7 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     const lines = (x) => x.pts.split(" ").map(seg => PL.dec(seg).map(([la, lo]) => es.proj.toXY(la, lo)));
     const runs = es.sub.runs, exact = runs.filter(x => x.src !== "gpx").flatMap(lines), gps = runs.filter(x => x.src === "gpx").flatMap(lines);
     es.done = EveryStreet.matchRuns(es.g, es.an, exact);
-    if (gps.length) { const d2 = EveryStreet.matchRuns(es.g, es.an, gps, 15); for (let k = 0; k < d2.length; k++) if (d2[k]) es.done[k] = 1; }
+    if (gps.length) { const d2 = EveryStreet.matchRuns(es.g, es.an, gps, 15, true); /* wide streets: footpath runs count */ for (let k = 0; k < d2.length; k++) if (d2[k]) es.done[k] = 1; }
     es.prog = EveryStreet.progress(es.an, es.done);
     es.subProg = es.sub.subs.map((x, i) => {
       const req = new Uint8Array(es.an.required.length); let total = 0;
