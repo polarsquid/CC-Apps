@@ -1124,6 +1124,15 @@ body.mode-every .art-only, body:not(.mode-every) .every-only { display: none !im
 .elevpanel.closed { padding-bottom: 12px; }
 .elevpanel.closed .ep-graph { display: none; }
 .controls #esGpx { padding: 7px 12px; align-self: flex-start; }
+/* GitHub sync */
+.essyncform { display: flex; flex-direction: column; gap: 6px; }
+.essyncform label { font: 600 12px var(--body); color: var(--muted); margin-top: 4px; }
+.essyncform input[type=password] { font: 500 15px var(--body); color: var(--ink); background: transparent; border: 0; border-bottom: 1.5px solid var(--ink); border-radius: 0; padding: 8px 0; width: 100%; }
+.essyncform input[type=password]:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.esline.bad { color: var(--warn); }
+.esline.bad:empty { display: none; }
+#esSyncLine span { color: var(--muted); }
+#esSyncStop.armed { color: var(--warn); border-color: var(--warn); }
 </style>
 </head>
 <body>
@@ -1202,6 +1211,26 @@ body.mode-every .art-only, body:not(.mode-every) .every-only { display: none !im
         <div class="libbtns"><button type="button" class="ghost" id="esGpx">Add GPX files</button></div>
         <input type="file" id="esGpxFile" accept=".gpx,application/gpx+xml,application/xml,text/xml" multiple hidden>
         <p class="hint">Any run counts towards every suburb it passes through. Export it from Strava or Garmin Connect as GPX. Art routes have an "Add to Every street" button on their cards.</p>
+      </div>
+      <div class="field every-only" id="esSyncField">
+        <span class="lbl">Sync between devices</span>
+        <div id="esSyncOff">
+          <div class="libbtns"><button type="button" class="ghost" id="esSyncSetup">Set up GitHub sync</button></div>
+          <p class="hint">Keep progress in a private GitHub repo so your phone and computer stay in step.</p>
+        </div>
+        <div class="essyncform" id="esSyncForm" hidden>
+          <label for="esSyncRepo">Private repo</label>
+          <input type="text" id="esSyncRepo" placeholder="yourname/running-data" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <label for="esSyncToken">Access token</label>
+          <input type="password" id="esSyncToken" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
+          <div class="libbtns"><button type="button" class="ghost" id="esSyncConnect">Connect</button><button type="button" class="ghost" id="esSyncCancel">Cancel</button></div>
+          <p class="esline bad" id="esSyncMsg" aria-live="polite"></p>
+          <p class="hint">Make the token on GitHub: Settings › Developer settings › Fine-grained tokens. Give it only this repo, with Contents set to "Read and write". It's kept in this browser only.</p>
+        </div>
+        <div id="esSyncOn" hidden>
+          <p class="esline" id="esSyncLine" aria-live="polite"></p>
+          <div class="libbtns"><button type="button" class="ghost" id="esSyncNow">Sync now</button><button type="button" class="ghost" id="esSyncStop">Stop on this device</button></div>
+        </div>
       </div>
       <div class="field every-only">
         <span class="lbl">Backup</span>
@@ -3757,7 +3786,7 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
   const es = { data: { v: 1, current: null, suburbs: {} }, key: null, sub: null, g: null, proj: null, an: null, done: null, prog: null, plan: [], page: 0, loadId: 0 };
   try { const v = JSON.parse(localStorage.getItem(ES_KEY) || "null"); if (v && v.suburbs && typeof v.suburbs === "object") es.data = v; } catch (e) {}
   const esSave = () => {
-    try { localStorage.setItem(ES_KEY, JSON.stringify(es.data)); return true; }
+    try { localStorage.setItem(ES_KEY, JSON.stringify(es.data)); if (es.onSaved) es.onSaved(); return true; }
     catch (e) { setStatus("Couldn't save progress in this browser (storage is full or blocked). Use Export backup to keep a copy."); return false; }
   };
   /* runs are stored as encoded polylines (5 decimal places, about 1 m) */
@@ -3861,7 +3890,7 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     const polys = h.geojson.type === "Polygon" ? [h.geojson.coordinates] : h.geojson.coordinates;
     const rings = polys.flat().map(ring => ring.map(([lo, la]) => [+la.toFixed(6), +lo.toFixed(6)]));
     const old = es.data.suburbs[key];
-    es.data.suburbs[key] = { ...(old || { runs: [] }), name: h.name || h.display_name.split(",")[0], full: placeLabel(h), rings };
+    es.data.suburbs[key] = { ...(old || { runs: [], added: Date.now() }), name: h.name || h.display_name.split(",")[0], full: placeLabel(h), rings };
     es.data.current = key; esSave();
     $("esSub").value = "";
     openSuburb(key);
@@ -3946,7 +3975,7 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
       del.title = `Remove ${s.name} and its progress`; del.setAttribute("aria-label", del.title);
       del.onclick = () => {
         if (!del.classList.contains("armed")) { del.classList.add("armed"); del.textContent = "Remove?"; clearTimeout(del._t); del._t = setTimeout(() => { del.classList.remove("armed"); del.textContent = "×"; }, 3000); return; }
-        delete es.data.suburbs[k];
+        delete es.data.suburbs[k]; (es.data.removedSubs = es.data.removedSubs || {})[k] = Date.now();
         if (k === es.key) { es.data.current = Object.keys(es.data.suburbs)[0] || null; esSave(); if (es.data.current) openSuburb(es.data.current); else closeSuburb(); }
         else { esSave(); renderSuburb(); }
       };
@@ -4038,8 +4067,9 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     setStatus(`Ticked off: ${km1(es.prog.done - before)} km of new street. ${Math.floor(es.prog.frac * 100)}% of ${es.sub.name} done.`, 1);
     if (es.prog.frac >= 0.995) setStatus(`That finishes ${es.sub.name}! Type the next suburb above to keep going.`, 1);
   }
+  const forget = id => { (es.data.removed = es.data.removed || {})[id] = Date.now(); }; // so other devices drop it too
   function unmarkRun(id) {
-    es.sub.runs = es.sub.runs.filter(x => x.id !== id); esSave();
+    es.sub.runs = es.sub.runs.filter(x => x.id !== id); forget(id); esSave();
     for (const r of es.plan) if (r.every.mark === id) r.every.mark = null;
     if (es.g) { recomputeDone(); drawProgressLayer(); refreshNew(); }
     renderSuburb(); renderCards(); renderLog();
@@ -4207,7 +4237,9 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
         if (!s || !Array.isArray(s.rings) || !Array.isArray(s.runs)) continue;
         const runs = s.runs.filter(x => x && typeof x.id === "string" && typeof x.pts === "string");
         const cur = es.data.suburbs[k];
-        if (!cur) { es.data.suburbs[k] = { name: String(s.name || "Suburb"), full: String(s.full || s.name || ""), rings: s.rings, runs, pct: s.pct, doneKm: s.doneKm, totalKm: s.totalKm }; added += runs.length; }
+        if (es.data.removed) for (const x of runs) delete es.data.removed[x.id]; // importing a backup brings its runs back
+        if (es.data.removedSubs) delete es.data.removedSubs[k];
+        if (!cur) { es.data.suburbs[k] = { name: String(s.name || "Suburb"), full: String(s.full || s.name || ""), rings: s.rings, runs, pct: s.pct, doneKm: s.doneKm, totalKm: s.totalKm, added: Date.now() }; added += runs.length; }
         else { const have = new Set(cur.runs.map(x => x.id)); for (const x of runs) if (!have.has(x.id)) { cur.runs.push(x); added++; } cur.runs.sort((a, b) => (a.date || "").localeCompare(b.date || "")); }
         subs++;
       }
@@ -4254,6 +4286,7 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
     return { keys: added, id, dup: false };
   }
   function removeAdded(id) {
+    forget(id);
     for (const [k, sub] of Object.entries(es.data.suburbs)) if (sub.runs.some(x => x.id === id)) { sub.runs = sub.runs.filter(x => x.id !== id); if (k !== es.key || !es.g) delete sub.pct; }
     esSave();
     if (es.g) { recomputeDone(); drawProgressLayer(); refreshNew(); renderCards(); }
@@ -4343,6 +4376,149 @@ ${r.latlng.map(([la, lo], i) => r.elev ? `<trkpt lat="${la.toFixed(6)}" lon="${l
       if (artRoute && state.results.includes(artRoute)) showOnMap(artRoute); else map.fitBounds(circle.getBounds(), { padding: [30, 30] });
     }
   }
+
+  /* ---------- sync between devices through a file in a private GitHub repo ----------
+     Settings (repo, token, file) stay in this browser only ("raf-sync"). The file holds every suburb and its runs.
+     Devices merge by run id; removed runs and suburbs are remembered so they don't come back from another device. */
+  const SYNC_KEY = "raf-sync";
+  es.sync = { cfg: null, busy: false, again: false, timer: 0, lastSig: "" };
+  try { const c = JSON.parse(localStorage.getItem(SYNC_KEY) || "null"); if (c && c.repo && c.token) es.sync.cfg = c; } catch (e) {}
+  const saveSyncCfg = () => { try { if (es.sync.cfg) localStorage.setItem(SYNC_KEY, JSON.stringify(es.sync.cfg)); else localStorage.removeItem(SYNC_KEY); } catch (e) {} };
+  /* what has to match between devices: suburbs, their runs, and what was removed */
+  const syncSig = d => JSON.stringify([Object.keys(d.suburbs || {}).sort().map(k => [k, (d.suburbs[k].runs || []).map(x => x.id).sort()]), Object.keys(d.removed || {}).sort(), Object.keys(d.removedSubs || {}).sort()]);
+  function mergeData(local, remote) {
+    const removed = { ...(remote.removed || {}), ...(local.removed || {}) }, removedSubs = { ...(remote.removedSubs || {}), ...(local.removedSubs || {}) };
+    const out = { v: 1, current: local.current, suburbs: {}, removed, removedSubs };
+    const keys = new Set([...Object.keys(local.suburbs || {}), ...Object.keys(remote.suburbs || {})]);
+    for (const k of keys) {
+      const L = (local.suburbs || {})[k], R = (remote.suburbs || {})[k], added = Math.max((L && L.added) || 0, (R && R.added) || 0);
+      if (removedSubs[k] && removedSubs[k] >= added) continue;
+      const runs = new Map();
+      for (const x of [...((R && R.runs) || []), ...((L && L.runs) || [])]) {
+        if (!x || removed[x.id]) continue;
+        const had = runs.get(x.id); if (!had || (had.newKm == null && x.newKm != null)) runs.set(x.id, x);
+      }
+      out.suburbs[k] = { ...(R || {}), ...(L || {}), added, runs: [...runs.values()].sort((a, b) => (a.date || "").localeCompare(b.date || "")) };
+    }
+    if (!out.suburbs[out.current]) out.current = Object.keys(out.suburbs)[0] || null;
+    return out;
+  }
+  const b64enc = str => { const b = new TextEncoder().encode(str); let bin = ""; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(bin); };
+  const b64dec = str => new TextDecoder().decode(Uint8Array.from(atob(str.replace(/\s/g, "")), c => c.charCodeAt(0)));
+  async function gh(method, path, body, accept) {
+    const c = es.sync.cfg;
+    let r;
+    try {
+      r = await fetch(`https://api.github.com/repos/${c.repo}${path}`, {
+        method, cache: "no-store",
+        headers: { Authorization: `Bearer ${c.token}`, Accept: accept || "application/vnd.github+json", ...(body ? { "Content-Type": "application/json" } : {}) },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (e) { throw new Error("Couldn't reach GitHub. Check the internet connection."); }
+    if (r.status === 401) throw new Error("GitHub didn't accept the token. It may have expired: make a new one and set up sync again.");
+    if (r.status === 403 && r.headers.get("x-ratelimit-remaining") === "0") throw new Error("GitHub's hourly limit was reached. Sync will work again within the hour.");
+    return r;
+  }
+  const filePath = () => "/contents/" + es.sync.cfg.file.split("/").map(encodeURIComponent).join("/");
+  async function pull() {
+    const r = await gh("GET", filePath());
+    if (r.status === 404) return { data: null, sha: null };
+    if (!r.ok) throw new Error(`GitHub said "${r.status}" when reading the progress file.`);
+    const j = await r.json();
+    let text = j.content ? b64dec(j.content) : null;
+    if (text == null && j.size > 0) { const raw = await gh("GET", filePath(), null, "application/vnd.github.raw+json"); text = await raw.text(); } // files over 1 MB
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+    if (text && (!data || data.kind !== "every-street-sync" || typeof data.suburbs !== "object")) throw new Error(`${es.sync.cfg.file} in ${es.sync.cfg.repo} isn't an Every street progress file, so sync left it alone.`);
+    return { data, sha: j.sha };
+  }
+  async function push(data, sha) {
+    const { current, ...rest } = data; // which suburb is open stays per device
+    const body = { message: `Every street progress from ${navigator.userAgent.includes("Android") ? "Android" : "a computer"}, ${new Date().toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" })}`, content: b64enc(JSON.stringify({ app: "Route Art Finder", kind: "every-street-sync", updated: new Date().toISOString(), ...rest })) };
+    if (sha) body.sha = sha;
+    const r = await gh("PUT", filePath(), body);
+    if (r.status === 409 || r.status === 422) return false; // another device saved first: fetch, merge, try again
+    if (r.status === 403 || r.status === 404) throw new Error("The token can't write to that repo. Give it access to the repo with Contents set to \"Read and write\".");
+    if (!r.ok) throw new Error(`GitHub said "${r.status}" when saving progress.`);
+    return true;
+  }
+  /* after other devices' changes arrive: redraw whatever is showing */
+  function applyMerged() {
+    if (es.key && !es.data.suburbs[es.key]) { if (es.data.current) openSuburb(es.data.current); else closeSuburb(); return; }
+    if (!es.key && es.data.current && state.mode === "every") { openSuburb(es.data.current); return; }
+    if (es.key) {
+      es.sub = es.data.suburbs[es.key];
+      for (const r of es.plan) if (r.every.mark && !es.sub.runs.some(x => x.id === r.every.mark)) r.every.mark = null;
+      if (es.g) { recomputeDone(); drawProgressLayer(); refreshNew(); renderCards(); }
+    }
+    renderSuburb(); renderLog();
+  }
+  async function syncNow() {
+    if (!es.sync.cfg) return;
+    if (es.sync.busy) { es.sync.again = true; return; }
+    es.sync.busy = true; clearTimeout(es.sync.timer); renderSync("Syncing…");
+    try {
+      for (let attempt = 0; ; attempt++) {
+        const remote = await pull();
+        const merged = remote.data ? mergeData(es.data, remote.data) : es.data;
+        if (syncSig(merged) !== syncSig(es.data)) { es.data = merged; es.sync.quiet = true; esSave(); es.sync.quiet = false; applyMerged(); }
+        if (remote.data && syncSig(remote.data) === syncSig(merged)) break;
+        if (await push(merged, remote.sha)) break;
+        if (attempt >= 3) throw new Error("Another device kept saving at the same time. Try Sync now again.");
+      }
+      es.sync.lastSig = syncSig(es.data); es.sync.cfg.last = Date.now(); es.sync.cfg.err = ""; saveSyncCfg();
+    } catch (err) { if (es.sync.cfg) { es.sync.cfg.err = err.message || String(err); saveSyncCfg(); } }
+    finally { es.sync.busy = false; renderSync(); if (es.sync.again) { es.sync.again = false; syncNow(); } }
+  }
+  // changes on this device: save to GitHub a few seconds later (several quick changes become one save)
+  es.onSaved = () => {
+    if (!es.sync.cfg || es.sync.quiet || syncSig(es.data) === es.sync.lastSig) return;
+    clearTimeout(es.sync.timer); es.sync.timer = setTimeout(syncNow, 2500); renderSync("Waiting to sync…");
+  };
+  // coming back to the page (switching apps on a phone): pick up other devices' runs
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && es.sync.cfg && Date.now() - (es.sync.cfg.last || 0) > 30000) syncNow(); });
+  const ago = t => { const s = (Date.now() - t) / 1000; return s < 60 ? "just now" : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : niceDate(new Date(t).toLocaleDateString("en-CA")); };
+  function renderSync(msg) {
+    const c = es.sync.cfg;
+    $("esSyncOff").hidden = !!c || !$("esSyncForm").hidden; $("esSyncOn").hidden = !c;
+    if (!c) return;
+    const line = $("esSyncLine");
+    line.classList.toggle("bad", !msg && !!c.err);
+    line.innerHTML = msg ? `${esc(msg)} <span>${esc(c.repo)}</span>` : c.err ? esc(c.err) : `Synced with <strong>${esc(c.repo)}</strong>${c.last ? " · " + ago(c.last) : ""}`;
+  }
+  setInterval(() => { if (es.sync.cfg && !es.sync.busy) renderSync(); }, 60000);
+  $("esSyncSetup").onclick = () => { $("esSyncForm").hidden = false; renderSync(); $("esSyncRepo").focus(); };
+  $("esSyncCancel").onclick = () => { $("esSyncForm").hidden = true; $("esSyncMsg").textContent = ""; renderSync(); };
+  $("esSyncConnect").onclick = async () => {
+    const repo = $("esSyncRepo").value.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/i, "").replace(/\/+$/, "");
+    const token = $("esSyncToken").value.trim(), msg = $("esSyncMsg");
+    if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { msg.textContent = "Type the repo as yourname/repo-name."; return; }
+    if (!token) { msg.textContent = "Paste the access token."; return; }
+    const btn = $("esSyncConnect"); btn.disabled = true; msg.textContent = "Checking the repo…";
+    es.sync.cfg = { repo, token, file: "every-street-progress.json" };
+    try {
+      const r = await gh("GET", "");
+      if (r.status === 404) throw new Error(`Can't see ${repo} with this token. Check the name, and that the token was given access to that repo.`);
+      if (!r.ok) throw new Error(`GitHub said "${r.status}" when checking the repo.`);
+      const j = await r.json();
+      if (!j.private) throw new Error(`${repo} is public, so anyone could see your runs and where you start. Use a private repo.`);
+      saveSyncCfg(); $("esSyncForm").hidden = true; $("esSyncToken").value = ""; msg.textContent = "";
+      await syncNow();
+      setStatus(es.sync.cfg && !es.sync.cfg.err ? `Sync is on. Progress is saved to ${repo} and shared with your other devices.` : (es.sync.cfg ? es.sync.cfg.err : ""));
+    } catch (err) { es.sync.cfg = null; msg.textContent = err.message || String(err); }
+    finally { btn.disabled = false; renderSync(); }
+  };
+  $("esSyncNow").onclick = () => syncNow();
+  $("esSyncStop").onclick = () => {
+    const b = $("esSyncStop");
+    if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Stop syncing here?"; clearTimeout(b._t); b._t = setTimeout(() => { b.classList.remove("armed"); b.textContent = "Stop on this device"; }, 3000); return; }
+    b.classList.remove("armed"); b.textContent = "Stop on this device";
+    es.sync.cfg = null; saveSyncCfg(); renderSync();
+    setStatus("Sync is off on this device. Your progress stays here and in the repo.");
+  };
+  renderSync();
+  if (es.sync.cfg) syncNow();
+
   state.mode = "art";
   $("tabArt").onclick = () => setMode("art");
   $("tabEvery").onclick = () => setMode("every");
